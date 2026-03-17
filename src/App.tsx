@@ -1,0 +1,196 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { Note, TagEntry, View, ColorTheme } from "./types";
+import Sidebar from "./components/Sidebar";
+import Feed from "./components/Feed";
+import NoteDetail from "./components/NoteDetail";
+
+export default function App() {
+  const [view, setView] = useState<View>("all");
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [tags, setTags] = useState<TagEntry[]>([]);
+  const [inboxCount, setInboxCount] = useState(0);
+  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+  const [focusNewNote, setFocusNewNote] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchFocusTrigger, setSearchFocusTrigger] = useState(0);
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    return (localStorage.getItem("theme") as "dark" | "light") || "dark";
+  });
+  const [colorTheme, setColorTheme] = useState<ColorTheme>(() => {
+    return (localStorage.getItem("colorTheme") as ColorTheme) || "graphite";
+  });
+
+  useEffect(() => {
+    const el = document.documentElement;
+    el.classList.remove("theme-ink", "theme-nord", "theme-dusk", "theme-forest");
+    if (colorTheme !== "graphite") el.classList.add(`theme-${colorTheme}`);
+    if (theme === "light") el.classList.add("light");
+    else el.classList.remove("light");
+    localStorage.setItem("theme", theme);
+    localStorage.setItem("colorTheme", colorTheme);
+  }, [theme, colorTheme]);
+
+  const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
+
+  const loadNotes = useCallback(async () => {
+    try {
+      let fetched: Note[];
+      if (searchQuery.trim()) {
+        fetched = await invoke<Note[]>("search_notes", { query: searchQuery });
+      } else if (view === "all") {
+        fetched = await invoke<Note[]>("list_notes");
+      } else if (view === "inbox") {
+        fetched = await invoke<Note[]>("get_inbox");
+      } else if (view === "trash") {
+        fetched = await invoke<Note[]>("get_trash");
+      } else if (typeof view === "object" && "tag" in view) {
+        fetched = await invoke<Note[]>("get_notes_by_tag", { tag: view.tag });
+      } else {
+        fetched = [];
+      }
+      setNotes(fetched);
+    } catch (e) {
+      console.error("Failed to load notes:", e);
+    }
+  }, [view, searchQuery]);
+
+  const loadSidebar = useCallback(async () => {
+    try {
+      const [allTags, inbox] = await Promise.all([
+        invoke<TagEntry[]>("get_all_tags"),
+        invoke<Note[]>("get_inbox"),
+      ]);
+      setTags(allTags);
+      setInboxCount(inbox.length);
+    } catch (e) {
+      console.error("Failed to load sidebar:", e);
+    }
+  }, []);
+
+  useEffect(() => { loadNotes(); }, [loadNotes]);
+  useEffect(() => { loadSidebar(); }, [loadSidebar]);
+
+  const refresh = useCallback(() => {
+    loadNotes();
+    loadSidebar();
+  }, [loadNotes, loadSidebar]);
+
+  const handleAddNote = useCallback(async () => {
+    try {
+      const id = await invoke<number>("insert_note", {
+        title: "New note",
+        content: "",
+        tags: [],
+      });
+      setView("inbox");
+      setSearchQuery("");
+      await loadNotes();
+      await loadSidebar();
+      setFocusNewNote(true);
+      setSelectedNoteId(id);
+    } catch (e) {
+      console.error("Failed to create note:", e);
+    }
+  }, [loadNotes, loadSidebar]);
+
+  // Stale-closure-safe refs for global shortcuts
+  const stateRef = useRef({ selectedNoteId, notes, view });
+  useEffect(() => { stateRef.current = { selectedNoteId, notes, view }; });
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      const inInput = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable;
+
+      if (e.ctrlKey && e.key === "n") { e.preventDefault(); handleAddNote(); return; }
+      if (e.ctrlKey && e.key === "f") {
+        e.preventDefault();
+        setView("all"); setSearchQuery("");
+        setSearchFocusTrigger((t) => t + 1);
+        return;
+      }
+      if (e.ctrlKey && e.key === "1") { e.preventDefault(); setView("inbox"); setSearchQuery(""); setSelectedNoteId(null); return; }
+      if (e.ctrlKey && e.key === "2") { e.preventDefault(); setView("all"); setSearchQuery(""); setSelectedNoteId(null); return; }
+      if (e.ctrlKey && e.key === "3") { e.preventDefault(); setView("trash"); setSearchQuery(""); setSelectedNoteId(null); return; }
+
+      if (inInput) return;
+
+      if (e.key === "Escape") { setSelectedNoteId(null); setFocusNewNote(false); return; }
+
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const { notes: ns, selectedNoteId: sel } = stateRef.current;
+        if (ns.length === 0) return;
+        const idx = ns.findIndex((n) => n.id === sel);
+        const next = e.key === "ArrowDown"
+          ? (idx === -1 ? 0 : Math.min(idx + 1, ns.length - 1))
+          : (idx === -1 ? ns.length - 1 : Math.max(idx - 1, 0));
+        setSelectedNoteId(ns[next].id);
+        return;
+      }
+
+      if (e.ctrlKey && e.key === "Backspace") {
+        const { selectedNoteId: sel } = stateRef.current;
+        if (sel != null) {
+          invoke("trash_note", { id: sel }).then(() => { setSelectedNoteId(null); refresh(); }).catch(console.error);
+        }
+        return;
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handleAddNote, refresh]);
+
+  const handleViewChange = (v: View) => {
+    setView(v);
+    setSearchQuery("");
+    setSelectedNoteId(null);
+  };
+
+  return (
+    <div className="flex h-screen w-full bg-app">
+      <Sidebar
+        view={view}
+        tags={tags}
+        inboxCount={inboxCount}
+        theme={theme}
+        colorTheme={colorTheme}
+        onViewChange={handleViewChange}
+        onTagRename={refresh}
+        onTagDelete={refresh}
+        onThemeToggle={toggleTheme}
+        onColorThemeChange={setColorTheme}
+      />
+
+      <Feed
+        notes={notes}
+        view={view}
+        searchQuery={searchQuery}
+        selectedNoteId={selectedNoteId}
+        searchFocusTrigger={searchFocusTrigger}
+        onSearchChange={setSearchQuery}
+        onSelectNote={setSelectedNoteId}
+        onTagClick={(tag) => handleViewChange({ tag })}
+        onAddNote={handleAddNote}
+      />
+
+      {selectedNoteId != null ? (
+        <NoteDetail
+          key={selectedNoteId}
+          noteId={selectedNoteId}
+          focusTitle={focusNewNote}
+          onNavigate={(id) => { setFocusNewNote(false); setSelectedNoteId(id); }}
+          onTagClick={(tag) => handleViewChange({ tag })}
+          onDeselect={() => { setFocusNewNote(false); setSelectedNoteId(null); }}
+          onRefresh={refresh}
+        />
+      ) : (
+        <div className="flex-1 flex items-center justify-center text-ghost text-sm select-none">
+          Select a note to read it
+        </div>
+      )}
+    </div>
+  );
+}
