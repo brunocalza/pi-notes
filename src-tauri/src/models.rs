@@ -2,6 +2,16 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttachmentMeta {
+    pub id: i64,
+    pub note_id: i64,
+    pub filename: String,
+    pub mime_type: String,
+    pub size: i64,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Note {
     pub id: i64,
     pub title: String,

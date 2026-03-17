@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { Trash2, Link, Plus, X } from "lucide-react";
-import { Note, TagEntry } from "../types";
+import { Trash2, Link, Plus, X, Paperclip, Pencil, Check, Undo2, MoreHorizontal } from "lucide-react";
+import { api } from "../api";
+import { Note, AttachmentMeta } from "../types";
 import BlockEditor from "./BlockEditor";
 import { validateTag } from "../tags";
 
@@ -18,6 +18,9 @@ interface Props {
 export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick, onDeselect, onRefresh }: Props) {
   const [note, setNote] = useState<Note | null>(null);
   const [backlinks, setBacklinks] = useState<Note[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
+  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState<string[]>([]);
 
@@ -26,15 +29,20 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
   const [tagInputValue, setTagInputValue] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
   const [tagActiveIdx, setTagActiveIdx] = useState(0);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const tagInputRef = useRef<HTMLInputElement>(null);
   const tagPopoverRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const actionsButtonRef = useRef<HTMLButtonElement>(null);
+  const actionsPopoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    invoke<Note | null>("get_note", { id: noteId }).then((n) => {
+    api.getNote(noteId).then((n) => {
       if (n) { setNote(n); setTitle(n.title); setTags(n.tags); }
     }).catch(console.error);
-    invoke<Note[]>("get_backlinks", { id: noteId }).then(setBacklinks).catch(console.error);
+    api.getBacklinks(noteId).then(setBacklinks).catch(console.error);
+    api.getAttachments(noteId).then(setAttachments).catch(console.error);
   }, [noteId]);
 
   useEffect(() => {
@@ -45,7 +53,7 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
   }, [focusTitle, note]);
 
   useEffect(() => {
-    invoke<TagEntry[]>("get_all_tags")
+    api.getAllTags()
       .then((entries) => setAllTagsList(entries.map(([t]) => t)))
       .catch(() => {});
   }, []);
@@ -66,10 +74,22 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // Close actions popover on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        !actionsButtonRef.current?.contains(e.target as Node) &&
+        !actionsPopoverRef.current?.contains(e.target as Node)
+      ) setActionsOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const save = async (newTitle: string, newContent: string, newTags: string[]) => {
     if (!note) return;
     try {
-      await invoke("update_note", { id: note.id, title: newTitle.trim() || note.title, content: newContent, tags: newTags });
+      await api.updateNote(note.id, newTitle.trim() || note.title, newContent, newTags);
       onRefresh();
     } catch (e) { console.error("Failed to save note:", e); }
   };
@@ -107,46 +127,146 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
     return <div className="flex-1 flex items-center justify-center text-ghost text-sm">Loading...</div>;
   }
 
+  const handleAttachFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !note) return;
+    e.target.value = "";
+    const buffer = await file.arrayBuffer();
+    const data = Array.from(new Uint8Array(buffer));
+    try {
+      const id = await api.addAttachment(note.id, file.name, file.type, data);
+      const meta: AttachmentMeta = { id, note_id: note.id, filename: file.name, mime_type: file.type, size: file.size, created_at: new Date().toISOString() };
+      setAttachments((prev) => [...prev, meta]);
+    } catch (e) { console.error("Failed to attach file:", e); }
+  };
+
+  const handleRenameAttachment = async (id: number, newFilename: string) => {
+    const trimmed = newFilename.trim();
+    const old = attachments.find((a) => a.id === id);
+    setRenamingId(null);
+    if (!trimmed || !old || trimmed === old.filename) return;
+    try {
+      await api.renameAttachment(id, trimmed);
+      setAttachments((prev) => prev.map((a) => a.id === id ? { ...a, filename: trimmed } : a));
+      if (note) {
+        const newContent = note.content.split(`attachment:${old.filename}`).join(`attachment:${trimmed}`);
+        if (newContent !== note.content) {
+          setNote({ ...note, content: newContent });
+          await api.updateNote(note.id, title, newContent, tags);
+          onRefresh();
+        }
+      }
+    } catch (e) { console.error("Failed to rename attachment:", e); }
+  };
+
+  const handleDeleteAttachment = async (id: number) => {
+    try {
+      await api.deleteAttachment(id);
+      setAttachments((prev) => prev.filter((a) => a.id !== id));
+    } catch (e) { console.error("Failed to delete attachment:", e); }
+  };
+
+  const missingForAccept = [
+    ...(!title.trim() ? ["a title"] : []),
+    ...(tags.length === 0 ? ["at least one tag"] : []),
+    ...(!note?.content.trim() ? ["some content"] : []),
+  ];
+  const canAccept = missingForAccept.length === 0;
+
+  const handleAccept = async () => {
+    if (!note || !canAccept) return;
+    setActionsOpen(false);
+    await api.acceptNote(note.id);
+    onDeselect();
+    onRefresh();
+  };
+
   const handleTrash = async () => {
-    await invoke("trash_note", { id: note.id });
+    setActionsOpen(false);
+    await api.trashNote(note.id);
+    onDeselect();
+    onRefresh();
+  };
+
+  const handleMoveToInbox = async () => {
+    setActionsOpen(false);
+    await api.moveToInbox(note.id);
     onDeselect();
     onRefresh();
   };
 
   return (
     <div className="flex-1 flex flex-col h-full min-w-0">
-      {/* Toolbar */}
-      <div className="flex items-center gap-2 px-6 py-3 border-b bc-subtle shrink-0">
-        <div className="flex-1" />
-        <button
-          onClick={handleTrash}
-          className="p-1.5 rounded text-ghost hover:text-red-400 hover:bg-lift transition-colors"
-          title="Move to trash"
-        >
-          <Trash2 size={15} />
-        </button>
-      </div>
-
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-8 py-6">
         <div className="max-w-2xl mx-auto">
-          {/* Inline title */}
-          <input
-            ref={titleRef}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={() => save(title, note.content, tags)}
-            placeholder="Untitled"
-            className="w-full text-xl font-semibold text-hi bg-transparent outline-none mb-3 placeholder-ghost"
-          />
-
-          {/* Tags row */}
-          <div className="flex flex-wrap items-center gap-1.5 mb-5">
-            {tags.map((tag) => (
-              <span
-                key={tag}
-                className="flex items-center text-xs bg-lift rounded-full px-2.5 py-0.5 group"
+          {/* Title row with actions popover */}
+          <div className="flex items-center gap-2 mb-3">
+            <input
+              ref={titleRef}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={() => save(title, note.content, tags)}
+              placeholder="Untitled"
+              className="flex-1 text-xl font-semibold text-hi bg-transparent outline-none placeholder-ghost min-w-0"
+            />
+            <div className="relative shrink-0">
+              <button
+                ref={actionsButtonRef}
+                onClick={() => setActionsOpen((o) => !o)}
+                className="p-1 rounded text-ghost hover:text-lo hover:bg-lift transition-colors"
+                title="Note actions"
               >
+                <MoreHorizontal size={16} />
+              </button>
+              {actionsOpen && (
+                <div
+                  ref={actionsPopoverRef}
+                  className="absolute right-0 top-full mt-1 bg-field border bc-ui rounded-md shadow-xl z-50 overflow-hidden min-w-44"
+                >
+                  {note.in_inbox && (
+                    <button
+                      onClick={handleAccept}
+                      disabled={!canAccept}
+                      title={canAccept ? undefined : `Needs: ${missingForAccept.join(", ")}`}
+                      className={`flex items-center gap-2 w-full px-3 py-2 text-xs text-left transition-colors ${
+                        canAccept
+                          ? "text-inbox-badge hover:bg-lift cursor-pointer"
+                          : "text-ghost cursor-not-allowed"
+                      }`}
+                    >
+                      <Check size={12} />
+                      Accept note
+                    </button>
+                  )}
+                  {note.trashed && (
+                    <button
+                      onClick={handleMoveToInbox}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-md hover:bg-lift transition-colors"
+                    >
+                      <Undo2 size={12} />
+                      Move to inbox
+                    </button>
+                  )}
+                  {(note.in_inbox || note.trashed) && <div className="border-t bc-ui my-1" />}
+                  <button
+                    onClick={handleTrash}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-danger hover:bg-lift transition-colors"
+                  >
+                    <Trash2 size={12} />
+                    Move to trash
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Tags + attachments — single inline row */}
+          <div className="flex flex-wrap items-center gap-1.5 mb-5">
+
+            {/* Tag pills */}
+            {tags.map((tag) => (
+              <span key={tag} className="flex items-center text-xs bg-lift rounded-full px-2.5 py-0.5 group">
                 <span
                   onClick={() => onTagClick(tag)}
                   className="text-dim hover:text-lo cursor-pointer transition-colors select-none"
@@ -163,7 +283,7 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
               </span>
             ))}
 
-            {/* + button / inline input */}
+            {/* Add tag button / inline input */}
             <div className="relative">
               {tagInputOpen ? (
                 <>
@@ -236,23 +356,80 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
                 </button>
               )}
             </div>
+
+            {/* Divider */}
+            <span className="text-ghost select-none">·</span>
+
+            {/* Attachment chips */}
+            {attachments.map((a) => (
+              <span key={a.id} className="flex items-center text-xs bg-lift rounded-full px-2.5 py-0.5 group">
+                <Paperclip size={9} className="text-ghost mr-1 shrink-0" />
+                {renamingId === a.id ? (
+                  <input
+                    autoFocus
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onBlur={() => handleRenameAttachment(a.id, renameValue)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleRenameAttachment(a.id, renameValue);
+                      if (e.key === "Escape") setRenamingId(null);
+                    }}
+                    className="bg-transparent outline-none text-dim w-32"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <>
+                    <button
+                      onClick={() => api.openAttachment(a.id).catch(console.error)}
+                      className="text-dim hover:text-lo transition-colors select-none truncate max-w-36"
+                      title={a.filename}
+                    >
+                      {a.filename}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setRenamingId(a.id); setRenameValue(a.filename); }}
+                      className="w-0 overflow-hidden group-hover:w-3 ml-0 group-hover:ml-1 transition-all duration-100 text-ghost hover:text-lo flex items-center shrink-0 cursor-pointer"
+                      tabIndex={-1}
+                      title="Rename"
+                    >
+                      <Pencil size={9} />
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => handleDeleteAttachment(a.id)}
+                  className="w-0 overflow-hidden group-hover:w-3 ml-0 group-hover:ml-1 transition-all duration-100 text-ghost hover:text-lo flex items-center shrink-0 cursor-pointer"
+                  tabIndex={-1}
+                >
+                  <X size={9} />
+                </button>
+              </span>
+            ))}
+
+            {/* Attach button */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1 text-xs text-ghost hover:text-lo transition-colors"
+            >
+              <Paperclip size={11} />
+              {attachments.length === 0 && <span>Attach</span>}
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleAttachFile} />
+
           </div>
 
           {/* Block editor */}
-          <BlockEditor
-            content={note.content}
-            onCommit={(newContent) => {
-              setNote({ ...note, content: newContent });
-              save(title, newContent, tags);
-            }}
-            onNavigate={onNavigate}
-          />
-
-          {note.image_path && (
-            <div className="mt-6">
-              <img src={`file://${note.image_path}`} alt="Note attachment" className="max-w-full rounded-lg border bc-strong" />
-            </div>
-          )}
+          <div className="bg-lift rounded-lg px-4 py-3">
+            <BlockEditor
+              content={note.content}
+              onCommit={(newContent) => {
+                setNote({ ...note, content: newContent });
+                save(title, newContent, tags);
+              }}
+              onNavigate={onNavigate}
+              attachments={attachments}
+            />
+          </div>
 
           {backlinks.length > 0 && (
             <div className="mt-8 pt-4 border-t bc-subtle">

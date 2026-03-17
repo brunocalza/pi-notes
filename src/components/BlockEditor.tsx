@@ -3,9 +3,9 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import { invoke } from "@tauri-apps/api/core";
 import { FileText } from "lucide-react";
-import type { Note } from "../types";
+import { api } from "../api";
+import { AttachmentMeta } from "../types";
 
 // Split content into paragraph blocks, keeping code fences intact.
 function toBlocks(content: string): string[] {
@@ -43,10 +43,27 @@ function fromBlocks(blocks: string[]): string {
 
 const urlTransform = (url: string) => {
   if (url.startsWith("wikilink:")) return url;
+  if (url.startsWith("attachment:")) return url;
   if (!/^[a-z][a-z\d+\-.]*:/i.test(url)) return url;
   if (/^(https?|mailto|tel|ircs?):/i.test(url)) return url;
   return "";
 };
+
+function AttachmentImage({ filename, attachments, alt, width, height }: {
+  filename: string; attachments: AttachmentMeta[]; alt?: string; width?: string; height?: string;
+}) {
+  const [src, setSrc] = useState<string | null>(null);
+  const att = attachments.find((a) => a.filename === filename);
+  useEffect(() => {
+    if (!att) return;
+    api.getAttachmentData(att.id)
+      .then((b64) => setSrc(`data:${att.mime_type};base64,${b64}`))
+      .catch(console.error);
+  }, [att?.id]);
+  if (!att) return <span className="text-ghost text-xs italic">[attachment not found: {filename}]</span>;
+  if (!src) return <span className="text-ghost text-xs italic">Loading {filename}…</span>;
+  return <img src={src} alt={alt ?? filename} className="rounded-lg" style={{ maxWidth: "100%", width, height }} />;
+}
 
 function preprocessWikilinks(content: string): string {
   return content.replace(/\[\[([^\]]+)\]\]/g, "[$1](<wikilink:$1>)");
@@ -62,9 +79,10 @@ interface Props {
   content: string;
   onCommit: (content: string) => void;
   onNavigate: (id: number) => void;
+  attachments?: AttachmentMeta[];
 }
 
-export default function BlockEditor({ content, onCommit, onNavigate }: Props) {
+export default function BlockEditor({ content, onCommit, onNavigate, attachments = [] }: Props) {
   const [blocks, setBlocks] = useState(() => toBlocks(content));
   const [active, setActive] = useState<number | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -76,7 +94,7 @@ export default function BlockEditor({ content, onCommit, onNavigate }: Props) {
   const [activeIdx, setActiveIdx] = useState(0);
 
   useEffect(() => {
-    invoke<string[]>("get_all_note_titles").then(setAllTitles).catch(() => {});
+    api.getAllNoteTitles().then(setAllTitles).catch(() => {});
   }, []);
 
   // Close popover on outside click
@@ -213,7 +231,7 @@ export default function BlockEditor({ content, onCommit, onNavigate }: Props) {
 
   const components = useMemo(
     () => ({
-      a({ href, children }: { href?: string; children: React.ReactNode }) {
+      a({ href, children }: { href?: string; children?: React.ReactNode }) {
         if (href?.startsWith("wikilink:")) {
           const title = decodeURIComponent(href.slice("wikilink:".length));
           return (
@@ -222,7 +240,7 @@ export default function BlockEditor({ content, onCommit, onNavigate }: Props) {
               onClick={async (e) => {
                 e.stopPropagation();
                 try {
-                  const linked = await invoke<Note | null>("get_note_by_title", { title });
+                  const linked = await api.getNoteByTitle(title);
                   if (linked) onNavigate(linked.id);
                 } catch {}
               }}
@@ -237,8 +255,18 @@ export default function BlockEditor({ content, onCommit, onNavigate }: Props) {
           </a>
         );
       },
+      img({ src, alt }: { src?: string; alt?: string }) {
+        if (src?.startsWith("attachment:")) {
+          const raw = src.slice("attachment:".length);
+          const [filepart, query] = raw.split("?");
+          const filename = decodeURIComponent(filepart);
+          const params = new URLSearchParams(query);
+          return <AttachmentImage filename={filename} attachments={attachments} alt={alt} width={params.get("w") ?? undefined} height={params.get("h") ?? undefined} />;
+        }
+        return <img src={src} alt={alt} className="max-w-full rounded-lg" />;
+      },
     }),
-    [onNavigate]
+    [onNavigate, attachments]
   );
 
   return (

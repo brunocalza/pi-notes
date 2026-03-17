@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { api } from "../api";
 import { X, Tag } from "lucide-react";
 import TagInput from "./TagInput";
 import ContentEditor from "./ContentEditor";
@@ -23,7 +23,7 @@ export default function AddNotePanel({ onClose, onSaved }: Props) {
     }
     setSaving(true);
     try {
-      await invoke("insert_note", { title: title.trim(), content, tags });
+      await api.insertNote(title.trim(), content, tags);
       onSaved();
     } catch (e) {
       setError(String(e));

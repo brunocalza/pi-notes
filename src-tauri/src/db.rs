@@ -3,9 +3,12 @@ use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection};
 use std::path::PathBuf;
 
-use crate::models::Note;
+use crate::models::{AttachmentMeta, Note};
 
 pub fn get_db_path() -> PathBuf {
+    if let Ok(path) = std::env::var("PI_NOTES_DB_PATH") {
+        return PathBuf::from(path);
+    }
     let base = dirs::data_local_dir().unwrap_or_else(|| PathBuf::from("."));
     let dir = base.join("pi-notes");
     std::fs::create_dir_all(&dir).ok();
@@ -21,6 +24,7 @@ pub fn init() -> Result<Connection> {
     add_title_column_if_needed(&conn)?;
     add_trashed_column_if_needed(&conn)?;
     add_back_of_mind_columns_if_needed(&conn)?;
+    create_attachments_table_if_needed(&conn)?;
     Ok(conn)
 }
 
@@ -278,8 +282,18 @@ pub fn restore_note(conn: &Connection, id: i64) -> Result<()> {
     Ok(())
 }
 
+pub fn move_to_inbox(conn: &Connection, id: i64) -> Result<()> {
+    conn.execute("UPDATE notes SET trashed = 0, in_inbox = 1 WHERE id = ?1", params![id])?;
+    Ok(())
+}
+
 pub fn delete_note(conn: &Connection, id: i64) -> Result<()> {
     conn.execute("DELETE FROM notes WHERE id = ?1", params![id])?;
+    Ok(())
+}
+
+pub fn empty_trash(conn: &Connection) -> Result<()> {
+    conn.execute("DELETE FROM notes WHERE trashed = 1", [])?;
     Ok(())
 }
 
@@ -426,6 +440,88 @@ fn sync_tags(conn: &Connection, note_id: i64, tags: &[String]) -> Result<()> {
             )?;
         }
     }
+    Ok(())
+}
+
+fn create_attachments_table_if_needed(conn: &Connection) -> Result<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS note_attachments (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            note_id     INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+            filename    TEXT    NOT NULL,
+            mime_type   TEXT    NOT NULL,
+            data        BLOB    NOT NULL,
+            size        INTEGER NOT NULL,
+            created_at  INTEGER NOT NULL
+        );",
+    )?;
+    Ok(())
+}
+
+pub fn add_attachment(conn: &Connection, note_id: i64, filename: &str, mime_type: &str, data: &[u8]) -> Result<i64> {
+    let now = Utc::now().timestamp_millis();
+    let size = data.len() as i64;
+    conn.execute(
+        "INSERT INTO note_attachments (note_id, filename, mime_type, data, size, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![note_id, filename, mime_type, data, size, now],
+    )?;
+    Ok(conn.last_insert_rowid())
+}
+
+pub fn get_attachments(conn: &Connection, note_id: i64) -> Result<Vec<AttachmentMeta>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, note_id, filename, mime_type, size, created_at FROM note_attachments WHERE note_id = ?1 ORDER BY created_at ASC",
+    )?;
+    let rows = stmt.query_map(params![note_id], |row| {
+        let created_ms: i64 = row.get(5)?;
+        Ok(AttachmentMeta {
+            id: row.get(0)?,
+            note_id: row.get(1)?,
+            filename: row.get(2)?,
+            mime_type: row.get(3)?,
+            size: row.get(4)?,
+            created_at: ms_to_dt(created_ms),
+        })
+    })?.collect::<rusqlite::Result<_>>()?;
+    Ok(rows)
+}
+
+pub fn get_attachment_meta(conn: &Connection, id: i64) -> Result<Option<AttachmentMeta>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, note_id, filename, mime_type, size, created_at FROM note_attachments WHERE id = ?1",
+    )?;
+    Ok(stmt.query_row(params![id], |row| {
+        let created_ms: i64 = row.get(5)?;
+        Ok(AttachmentMeta {
+            id: row.get(0)?,
+            note_id: row.get(1)?,
+            filename: row.get(2)?,
+            mime_type: row.get(3)?,
+            size: row.get(4)?,
+            created_at: ms_to_dt(created_ms),
+        })
+    }).ok())
+}
+
+pub fn get_attachment_data(conn: &Connection, id: i64) -> Result<Vec<u8>> {
+    let data: Vec<u8> = conn.query_row(
+        "SELECT data FROM note_attachments WHERE id = ?1",
+        params![id],
+        |row| row.get(0),
+    )?;
+    Ok(data)
+}
+
+pub fn delete_attachment(conn: &Connection, id: i64) -> Result<()> {
+    conn.execute("DELETE FROM note_attachments WHERE id = ?1", params![id])?;
+    Ok(())
+}
+
+pub fn rename_attachment(conn: &Connection, id: i64, new_filename: &str) -> Result<()> {
+    conn.execute(
+        "UPDATE note_attachments SET filename = ?1 WHERE id = ?2",
+        params![new_filename, id],
+    )?;
     Ok(())
 }
 

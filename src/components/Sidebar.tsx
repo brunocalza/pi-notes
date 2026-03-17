@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { api } from "../api";
 import {
   Inbox,
   FileText,
@@ -83,7 +83,7 @@ export default function Sidebar({
       return;
     }
     try {
-      await invoke("rename_tag", { oldTag, newTag: renameValue.trim() });
+      await api.renameTag(oldTag, renameValue.trim());
       onTagRename();
     } catch (e) {
       console.error(e);
@@ -93,7 +93,7 @@ export default function Sidebar({
 
   const handleDeleteTag = async (tag: string) => {
     try {
-      await invoke("delete_tag", { tag });
+      await api.deleteTag(tag);
       onTagDelete();
     } catch (e) {
       console.error(e);

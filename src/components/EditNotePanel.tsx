@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { api } from "../api";
 import { X, Tag } from "lucide-react";
 import { Note } from "../types";
 import TagInput from "./TagInput";
@@ -25,7 +25,7 @@ export default function EditNotePanel({ note, onClose, onSaved }: Props) {
     }
     setSaving(true);
     try {
-      await invoke("update_note", { id: note.id, title: title.trim(), content, tags });
+      await api.updateNote(note.id, title.trim(), content, tags);
       onSaved();
     } catch (e) {
       setError(String(e));

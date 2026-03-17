@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { api } from "../api";
 import { FileText } from "lucide-react";
 
 interface Props {
@@ -17,7 +17,7 @@ export default function ContentEditor({ value, onChange, rows = 12, placeholder 
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
-    invoke<string[]>("get_all_note_titles")
+    api.getAllNoteTitles()
       .then(setAllTitles)
       .catch(() => {});
   }, []);

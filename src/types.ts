@@ -11,6 +11,15 @@ export interface Note {
   tags: string[];
 }
 
+export interface AttachmentMeta {
+  id: number;
+  note_id: number;
+  filename: string;
+  mime_type: string;
+  size: number;
+  created_at: string;
+}
+
 export type TagEntry = [string, number]; // [tag_name, count]
 
 export type View =

@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { api } from "../api";
 import { X, Hash } from "lucide-react";
 import { validateTag } from "../tags";
-import type { TagEntry } from "../types";
 
 interface Props {
   tags: string[];
@@ -21,7 +20,7 @@ export default function TagInput({ tags, onAdd, onRemove }: Props) {
 
   // Load all existing tags once
   useEffect(() => {
-    invoke<TagEntry[]>("get_all_tags")
+    api.getAllTags()
       .then((entries) => setAllTags(entries.map(([t]) => t)))
       .catch(() => {});
   }, []);

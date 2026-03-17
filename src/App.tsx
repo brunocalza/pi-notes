@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { Note, TagEntry, View, ColorTheme } from "./types";
+import { api } from "./api";
 import Sidebar from "./components/Sidebar";
 import Feed from "./components/Feed";
 import NoteDetail from "./components/NoteDetail";
@@ -37,15 +37,15 @@ export default function App() {
     try {
       let fetched: Note[];
       if (searchQuery.trim()) {
-        fetched = await invoke<Note[]>("search_notes", { query: searchQuery });
+        fetched = await api.searchNotes(searchQuery);
       } else if (view === "all") {
-        fetched = await invoke<Note[]>("list_notes");
+        fetched = await api.listNotes();
       } else if (view === "inbox") {
-        fetched = await invoke<Note[]>("get_inbox");
+        fetched = await api.getInbox();
       } else if (view === "trash") {
-        fetched = await invoke<Note[]>("get_trash");
+        fetched = await api.getTrash();
       } else if (typeof view === "object" && "tag" in view) {
-        fetched = await invoke<Note[]>("get_notes_by_tag", { tag: view.tag });
+        fetched = await api.getNotesByTag(view.tag);
       } else {
         fetched = [];
       }
@@ -58,8 +58,8 @@ export default function App() {
   const loadSidebar = useCallback(async () => {
     try {
       const [allTags, inbox] = await Promise.all([
-        invoke<TagEntry[]>("get_all_tags"),
-        invoke<Note[]>("get_inbox"),
+        api.getAllTags(),
+        api.getInbox(),
       ]);
       setTags(allTags);
       setInboxCount(inbox.length);
@@ -78,11 +78,7 @@ export default function App() {
 
   const handleAddNote = useCallback(async () => {
     try {
-      const id = await invoke<number>("insert_note", {
-        title: "New note",
-        content: "",
-        tags: [],
-      });
+      const id = await api.insertNote("New note", "", []);
       setView("inbox");
       setSearchQuery("");
       await loadNotes();
@@ -133,7 +129,7 @@ export default function App() {
       if (e.ctrlKey && e.key === "Backspace") {
         const { selectedNoteId: sel } = stateRef.current;
         if (sel != null) {
-          invoke("trash_note", { id: sel }).then(() => { setSelectedNoteId(null); refresh(); }).catch(console.error);
+          api.trashNote(sel).then(() => { setSelectedNoteId(null); refresh(); }).catch(console.error);
         }
         return;
       }
@@ -174,6 +170,7 @@ export default function App() {
         onSelectNote={setSelectedNoteId}
         onTagClick={(tag) => handleViewChange({ tag })}
         onAddNote={handleAddNote}
+        onEmptyTrash={async () => { await api.emptyTrash(); setSelectedNoteId(null); refresh(); }}
       />
 
       {selectedNoteId != null ? (

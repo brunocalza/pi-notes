@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Trash2 } from "lucide-react";
 import { Note, View } from "../types";
 import NoteCard from "./NoteCard";
 
@@ -13,6 +13,7 @@ interface Props {
   onSelectNote: (id: number) => void;
   onTagClick: (tag: string) => void;
   onAddNote: () => void;
+  onEmptyTrash: () => void;
 }
 
 function viewTitle(view: View): string {
@@ -33,6 +34,7 @@ export default function Feed({
   onSelectNote,
   onTagClick,
   onAddNote,
+  onEmptyTrash,
 }: Props) {
   const searchRef = useRef<HTMLInputElement>(null);
   const showSearch = view === "all" || (typeof view === "object" && "tag" in view);
@@ -49,7 +51,21 @@ export default function Feed({
           <h2 className="text-xs font-semibold text-lo uppercase tracking-wider">
             {viewTitle(view)}
           </h2>
-          {view !== "trash" && (
+          {view === "trash" ? (
+            notes.length > 0 && (
+              <button
+                onClick={() => {
+                  if (window.confirm("Permanently delete all trashed notes? This cannot be undone.")) {
+                    onEmptyTrash();
+                  }
+                }}
+                className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 hover:bg-field px-2.5 py-1 rounded-md transition-colors"
+              >
+                <Trash2 size={12} />
+                Empty Trash
+              </button>
+            )
+          ) : (
             <button
               onClick={onAddNote}
               className="flex items-center gap-1 bg-accent-btn hover:bg-accent-btn-hover text-accent text-xs px-2.5 py-1 rounded-md transition-colors"
