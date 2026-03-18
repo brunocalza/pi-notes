@@ -250,11 +250,11 @@ pub fn run() {
         )))
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
-            let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/logo.png")).unwrap();
+            let icon =
+                tauri::image::Image::from_bytes(include_bytes!("../icons/logo.png")).unwrap();
             window.set_icon(icon).unwrap();
             Ok(())
         })
-
         .invoke_handler(tauri::generate_handler![
             list_notes,
             get_note,
