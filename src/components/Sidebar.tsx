@@ -1,17 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../api";
-import {
-  Inbox,
-  FileText,
-  Trash2,
-  Tag,
-  Pencil,
-  X,
-  Search,
-  Sun,
-  Moon,
-  Settings,
-} from "lucide-react";
+import { Inbox, FileText, Trash2, Tag, Pencil, X, Search, Sun, Moon, Settings } from "lucide-react";
 import { Note, TagEntry, View, ColorTheme } from "../types";
 
 interface Props {
@@ -36,11 +25,36 @@ const THEMES: Array<{
   dark: { bg: string; accent: string };
   light: { bg: string; accent: string };
 }> = [
-  { id: "graphite", label: "Graphite", dark: { bg: "#161b22", accent: "#4493f8" }, light: { bg: "#f6f8fa", accent: "#0969da" } },
-  { id: "ink",      label: "Ink",      dark: { bg: "#181209", accent: "#d4973f" }, light: { bg: "#faf8f4", accent: "#a06820" } },
-  { id: "nord",     label: "Nord",     dark: { bg: "#242933", accent: "#88c0d0" }, light: { bg: "#eceff4", accent: "#5e81ac" } },
-  { id: "dusk",     label: "Dusk",     dark: { bg: "#1f1d2e", accent: "#c4a7e7" }, light: { bg: "#fffaf3", accent: "#907aa9" } },
-  { id: "forest",   label: "Forest",   dark: { bg: "#141e1a", accent: "#4ade80" }, light: { bg: "#f0f7f2", accent: "#16a34a" } },
+  {
+    id: "graphite",
+    label: "Graphite",
+    dark: { bg: "#161b22", accent: "#4493f8" },
+    light: { bg: "#f6f8fa", accent: "#0969da" },
+  },
+  {
+    id: "ink",
+    label: "Ink",
+    dark: { bg: "#181209", accent: "#d4973f" },
+    light: { bg: "#faf8f4", accent: "#a06820" },
+  },
+  {
+    id: "nord",
+    label: "Nord",
+    dark: { bg: "#242933", accent: "#88c0d0" },
+    light: { bg: "#eceff4", accent: "#5e81ac" },
+  },
+  {
+    id: "dusk",
+    label: "Dusk",
+    dark: { bg: "#1f1d2e", accent: "#c4a7e7" },
+    light: { bg: "#fffaf3", accent: "#907aa9" },
+  },
+  {
+    id: "forest",
+    label: "Forest",
+    dark: { bg: "#141e1a", accent: "#4ade80" },
+    light: { bg: "#f0f7f2", accent: "#16a34a" },
+  },
 ];
 
 export default function Sidebar({
@@ -69,7 +83,14 @@ export default function Sidebar({
 
   useEffect(() => {
     if (settingsOpen) {
-      api.getDbPathSetting().then((p) => { setDbPath(p); setDbPathInput(p); setDbPathError(""); }).catch(console.error);
+      api
+        .getDbPathSetting()
+        .then((p) => {
+          setDbPath(p);
+          setDbPathInput(p);
+          setDbPathError("");
+        })
+        .catch(console.error);
     }
   }, [settingsOpen]);
 
@@ -95,14 +116,10 @@ export default function Sidebar({
 
   const navClass = (v: View) =>
     `flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm cursor-pointer transition-colors ${
-      isActive(v)
-        ? "bg-raised text-hi"
-        : "text-lo hover:text-md hover:bg-field"
+      isActive(v) ? "bg-raised text-hi" : "text-lo hover:text-md hover:bg-field"
     }`;
 
-  const filteredTags = tags.filter(([t]) =>
-    t.toLowerCase().includes(tagSearch.toLowerCase())
-  );
+  const filteredTags = tags.filter(([t]) => t.toLowerCase().includes(tagSearch.toLowerCase()));
 
   const handleRenameSubmit = async (oldTag: string) => {
     if (!renameValue.trim() || renameValue.trim() === oldTag) {
@@ -134,9 +151,7 @@ export default function Sidebar({
     >
       {/* Header */}
       <div className="px-4 py-5 shrink-0">
-        <span className="text-ghost text-xs font-semibold uppercase tracking-wider">
-          Pi Notes
-        </span>
+        <span className="text-ghost text-xs font-semibold uppercase tracking-wider">Pi Notes</span>
       </div>
 
       {/* Nav */}
@@ -165,7 +180,9 @@ export default function Sidebar({
       {/* Recent notes */}
       {recentNotes.length > 0 && (
         <div className="px-2 mt-4 shrink-0">
-          <p className="text-xs font-semibold text-ghost uppercase tracking-wider px-2 mb-1">Recent</p>
+          <p className="text-xs font-semibold text-ghost uppercase tracking-wider px-2 mb-1">
+            Recent
+          </p>
           <div className="flex flex-col gap-0.5">
             {recentNotes.map((note) => (
               <button
@@ -174,7 +191,9 @@ export default function Sidebar({
                 className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs text-left text-dim hover:text-lo hover:bg-field transition-colors truncate"
                 title={note.title || "Untitled"}
               >
-                <span className="truncate">{note.title || <span className="italic text-ghost">Untitled</span>}</span>
+                <span className="truncate">
+                  {note.title || <span className="italic text-ghost">Untitled</span>}
+                </span>
               </button>
             ))}
           </div>
@@ -185,9 +204,7 @@ export default function Sidebar({
       <div className="flex-1 min-h-0 overflow-y-auto mt-6 px-4">
         <div className="flex items-center gap-2 mb-2">
           <Tag size={13} className="text-ghost" />
-          <span className="text-ghost text-xs font-semibold uppercase tracking-wider">
-            Tags
-          </span>
+          <span className="text-ghost text-xs font-semibold uppercase tracking-wider">Tags</span>
         </div>
 
         {tags.length > 5 && (
@@ -239,12 +256,12 @@ export default function Sidebar({
                   <span className="text-ghost">{count}</span>
 
                   {hoveredTag === tag && (
-                    <div
-                      className="flex items-center gap-0.5"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                       <button
-                        onClick={() => { setRenameTag(tag); setRenameValue(tag); }}
+                        onClick={() => {
+                          setRenameTag(tag);
+                          setRenameValue(tag);
+                        }}
                         className="p-0.5 rounded hover:bg-raised text-ghost hover:text-lo transition-colors"
                         title="Rename tag"
                       >
@@ -298,12 +315,8 @@ export default function Sidebar({
                       width: 34,
                       height: 26,
                       background: colors.bg,
-                      border: selected
-                        ? `2px solid ${colors.accent}`
-                        : "2px solid transparent",
-                      boxShadow: selected
-                        ? `0 0 0 1px ${colors.accent}40`
-                        : "none",
+                      border: selected ? `2px solid ${colors.accent}` : "2px solid transparent",
+                      boxShadow: selected ? `0 0 0 1px ${colors.accent}40` : "none",
                       borderRadius: 5,
                       overflow: "hidden",
                       position: "relative",
@@ -364,15 +377,20 @@ export default function Sidebar({
             <p className="text-[10px] text-ghost mb-1">Database path</p>
             <input
               value={dbPathInput}
-              onChange={(e) => { setDbPathInput(e.target.value); setDbPathError(""); }}
+              onChange={(e) => {
+                setDbPathInput(e.target.value);
+                setDbPathError("");
+              }}
               onBlur={handleDbPathSave}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.currentTarget.blur(); } }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                }
+              }}
               spellCheck={false}
               className="w-full bg-field border bc-ui rounded px-2 py-1 text-[11px] text-lo outline-none focus:bc-focus font-mono"
             />
-            {dbPathError && (
-              <p className="text-[10px] text-danger mt-1 break-all">{dbPathError}</p>
-            )}
+            {dbPathError && <p className="text-[10px] text-danger mt-1 break-all">{dbPathError}</p>}
           </div>
         </div>
       )}

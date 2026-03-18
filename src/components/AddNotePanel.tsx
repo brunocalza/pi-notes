@@ -49,7 +49,10 @@ export default function AddNotePanel({ onClose, onSaved }: Props) {
               autoFocus
               type="text"
               value={title}
-              onChange={(e) => { setTitle(e.target.value); setError(""); }}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setError("");
+              }}
               placeholder="Title"
               className="w-full bg-field border bc-ui rounded-md px-3 py-2 text-sm text-hi placeholder-[#444] outline-none focus:bc-focus transition-colors"
             />
@@ -78,7 +81,10 @@ export default function AddNotePanel({ onClose, onSaved }: Props) {
 
         {/* Footer */}
         <div className="flex justify-end gap-2 px-5 py-4 border-t bc-subtle">
-          <button onClick={onClose} className="px-4 py-1.5 text-xs text-dim hover:text-lo transition-colors">
+          <button
+            onClick={onClose}
+            className="px-4 py-1.5 text-xs text-dim hover:text-lo transition-colors"
+          >
             Cancel
           </button>
           <button

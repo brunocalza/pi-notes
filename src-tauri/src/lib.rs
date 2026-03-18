@@ -97,7 +97,6 @@ fn empty_trash(state: State<DbState>) -> Result<(), String> {
     db::empty_trash(&conn).map_err(map_err)
 }
 
-
 #[tauri::command]
 fn search_notes(state: State<DbState>, query: String) -> Result<Vec<Note>, String> {
     let conn = state.0.lock().map_err(map_err)?;
@@ -139,7 +138,6 @@ fn set_note_image(state: State<DbState>, id: i64, path: String) -> Result<(), St
     let conn = state.0.lock().map_err(map_err)?;
     db::set_note_image(&conn, id, &path).map_err(map_err)
 }
-
 
 #[tauri::command]
 fn get_note_by_title(state: State<DbState>, title: String) -> Result<Option<Note>, String> {
@@ -219,7 +217,8 @@ fn rename_attachment(state: State<DbState>, id: i64, filename: String) -> Result
 fn open_attachment(state: State<DbState>, id: i64) -> Result<(), String> {
     let (filename, data) = {
         let conn = state.0.lock().map_err(map_err)?;
-        let meta = db::get_attachment_meta(&conn, id).map_err(map_err)?
+        let meta = db::get_attachment_meta(&conn, id)
+            .map_err(map_err)?
             .ok_or_else(|| "Attachment not found".to_string())?;
         let data = db::get_attachment_data(&conn, id).map_err(map_err)?;
         (meta.filename, data)
@@ -227,11 +226,20 @@ fn open_attachment(state: State<DbState>, id: i64) -> Result<(), String> {
     let path = std::env::temp_dir().join(&filename);
     std::fs::write(&path, &data).map_err(map_err)?;
     #[cfg(target_os = "linux")]
-    std::process::Command::new("xdg-open").arg(&path).spawn().map_err(map_err)?;
+    std::process::Command::new("xdg-open")
+        .arg(&path)
+        .spawn()
+        .map_err(map_err)?;
     #[cfg(target_os = "macos")]
-    std::process::Command::new("open").arg(&path).spawn().map_err(map_err)?;
+    std::process::Command::new("open")
+        .arg(&path)
+        .spawn()
+        .map_err(map_err)?;
     #[cfg(target_os = "windows")]
-    std::process::Command::new("cmd").args(["/C", "start", "", &path.to_string_lossy()]).spawn().map_err(map_err)?;
+    std::process::Command::new("cmd")
+        .args(["/C", "start", "", &path.to_string_lossy()])
+        .spawn()
+        .map_err(map_err)?;
     Ok(())
 }
 

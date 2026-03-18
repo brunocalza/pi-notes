@@ -1,38 +1,4 @@
-/// Tag validation and normalization for pi-notes.
-///
-/// Valid tag format (canonical regex):
-/// `^(?=.{1,50}$)[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)*$`
-///
-/// Examples of valid tags: `rust`, `distributed-systems`, `language/rust`
-
-// ── Public API ────────────────────────────────────────────────────────────────
-
-/// Returns `true` if `tag` is already in canonical valid form (no normalization applied).
-pub fn is_valid_tag(tag: &str) -> bool {
-    if tag.is_empty() || tag.len() > 50 {
-        return false;
-    }
-    if tag.starts_with('/') || tag.ends_with('/') {
-        return false;
-    }
-    if tag.chars().any(|c| !matches!(c, 'a'..='z' | '0'..='9' | '-' | '/')) {
-        return false;
-    }
-    if tag.contains("--") || tag.contains("//") {
-        return false;
-    }
-    for segment in tag.split('/') {
-        if segment.is_empty() {
-            return false;
-        }
-        let first = segment.chars().next().unwrap();
-        let last = segment.chars().next_back().unwrap();
-        if first == '-' || last == '-' {
-            return false;
-        }
-    }
-    true
-}
+//! Tag normalization for pi-notes.
 
 /// Normalises a raw user input string into tag form:
 /// - trims whitespace

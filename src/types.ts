@@ -22,10 +22,6 @@ export interface AttachmentMeta {
 
 export type TagEntry = [string, number]; // [tag_name, count]
 
-export type View =
-  | "all"
-  | "inbox"
-  | "trash"
-  | { tag: string };
+export type View = "all" | "inbox" | "trash" | { tag: string };
 
 export type ColorTheme = "graphite" | "ink" | "nord" | "dusk" | "forest";

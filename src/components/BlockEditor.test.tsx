@@ -72,7 +72,7 @@ describe("BlockEditor", () => {
   });
 
   it("calls onNavigate when a wikilink is clicked", async () => {
-    vi.mocked(api.getNoteByTitle).mockResolvedValue({ id: 7 } as any);
+    vi.mocked(api.getNoteByTitle).mockResolvedValue({ id: 7 } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
     render(
       <BlockEditor content="See [[Linked Note]]" onCommit={onCommit} onNavigate={onNavigate} />

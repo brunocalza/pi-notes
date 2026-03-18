@@ -12,7 +12,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "wdio run e2e/wdio.conf.ts",
-    "test:e2e:build": "npm run build && wdio run e2e/wdio.conf.ts"
+    "test:e2e:build": "npm run build && wdio run e2e/wdio.conf.ts",
+    "lint": "eslint 'src/**/*.{ts,tsx}' 'e2e/**/*.ts'",
+    "lint:fix": "eslint 'src/**/*.{ts,tsx}' 'e2e/**/*.ts' --fix",
+    "format": "prettier --write 'src/**/*.{ts,tsx}' 'e2e/**/*.ts'",
+    "format:check": "prettier --check 'src/**/*.{ts,tsx}' 'e2e/**/*.ts'",
+    "lint:rust": "cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings",
+    "format:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml",
+    "format:rust:check": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
@@ -28,8 +35,10 @@
     "remark-math": "^6.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.0.6",
     "@tauri-apps/cli": "^2",
+    "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
@@ -41,9 +50,14 @@
     "@wdio/mocha-framework": "^9.26.1",
     "@wdio/spec-reporter": "^9.26.1",
     "@wdio/types": "^9.26.1",
+    "eslint": "^10.0.3",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "jsdom": "^29.0.0",
+    "prettier": "^3.8.1",
     "tailwindcss": "^4.0.6",
     "typescript": "^5.6.3",
+    "typescript-eslint": "^8.57.1",
     "vite": "^6.0.3",
     "vitest": "^4.1.0",
     "webdriverio": "^9.26.1"

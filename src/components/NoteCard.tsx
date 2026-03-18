@@ -46,27 +46,28 @@ export default function NoteCard({ note, selected, onClick, onTagClick }: Props)
         selected ? "bg-raised" : "hover:bg-field"
       }`}
     >
-      {selected && (
-        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--c-link)]" />
-      )}
+      {selected && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--c-link)]" />}
 
       <div className="flex items-baseline justify-between gap-2 mb-1">
-        <h3 className={`text-sm font-semibold leading-snug truncate flex-1 ${selected ? "text-hi" : "text-md"}`}>
+        <h3
+          className={`text-sm font-semibold leading-snug truncate flex-1 ${selected ? "text-hi" : "text-md"}`}
+        >
           {note.title || <span className="text-ghost italic font-normal">Untitled</span>}
         </h3>
         <span className="text-[10px] text-ghost shrink-0">{formatDate(note.created_at)}</span>
       </div>
 
-      {snippet && (
-        <p className="text-xs text-dim leading-relaxed line-clamp-2 mb-2">{snippet}</p>
-      )}
+      {snippet && <p className="text-xs text-dim leading-relaxed line-clamp-2 mb-2">{snippet}</p>}
 
       {note.tags.length > 0 && (
         <div className="flex gap-1.5 flex-wrap">
           {note.tags.slice(0, 4).map((tag) => (
             <span
               key={tag}
-              onClick={(e) => { e.stopPropagation(); onTagClick(tag); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onTagClick(tag);
+              }}
               className="text-[10px] text-ghost hover:text-lo cursor-pointer transition-colors"
             >
               #{tag}

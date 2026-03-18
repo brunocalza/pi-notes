@@ -55,7 +55,9 @@ export default function Feed({
             notes.length > 0 && (
               <button
                 onClick={() => {
-                  if (window.confirm("Permanently delete all trashed notes? This cannot be undone.")) {
+                  if (
+                    window.confirm("Permanently delete all trashed notes? This cannot be undone.")
+                  ) {
                     onEmptyTrash();
                   }
                 }}
@@ -94,9 +96,7 @@ export default function Feed({
       <div className="flex-1 overflow-y-auto py-1">
         {notes.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-ghost text-xs">
-              {searchQuery ? "No results" : "No notes here"}
-            </p>
+            <p className="text-ghost text-xs">{searchQuery ? "No results" : "No notes here"}</p>
           </div>
         ) : (
           notes.map((note) => (

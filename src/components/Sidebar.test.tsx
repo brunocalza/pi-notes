@@ -63,7 +63,10 @@ describe("Sidebar", () => {
   });
 
   it("renders tags list", () => {
-    const tags: [string, number][] = [["react", 3], ["typescript", 1]];
+    const tags: [string, number][] = [
+      ["react", 3],
+      ["typescript", 1],
+    ];
     render(<Sidebar {...defaultProps} tags={tags} />);
     expect(screen.getByText("react")).toBeInTheDocument();
     expect(screen.getByText("typescript")).toBeInTheDocument();

@@ -1,4 +1,12 @@
-import { waitForApp, clickNav, waitForText, clickNoteCard, clickButton, openActionsPopover, invoke } from "../helpers.js";
+import {
+  waitForApp,
+  clickNav,
+  waitForText,
+  clickNoteCard,
+  clickButton,
+  openActionsPopover,
+  invoke,
+} from "../helpers.js";
 
 describe("Accept Note", () => {
   before(waitForApp);
@@ -49,10 +57,11 @@ describe("Accept Note", () => {
 
     // Note disappears from the Inbox feed (may still appear in sidebar Recent)
     await browser.waitUntil(
-      () => browser.execute((title: string) => {
-        const feed = document.querySelector<HTMLElement>('[style*="360"]');
-        return feed ? !feed.innerHTML.includes(title) : false;
-      }, "Note to accept"),
+      () =>
+        browser.execute((title: string) => {
+          const feed = document.querySelector<HTMLElement>('[style*="360"]');
+          return feed ? !feed.innerHTML.includes(title) : false;
+        }, "Note to accept"),
       { timeout: 5_000, timeoutMsg: '"Note to accept" still present in Inbox feed after 5000ms' }
     );
 

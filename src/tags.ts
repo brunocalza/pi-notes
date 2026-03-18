@@ -23,12 +23,7 @@ export interface TagValidation {
  * - preserves `/` hierarchy
  */
 export function normalizeTag(raw: string): string {
-  return raw
-    .trim()
-    .replace(/^#/, "")
-    .toLowerCase()
-    .replace(/ +/g, " ")
-    .replace(/-+/g, "-");
+  return raw.trim().replace(/^#/, "").toLowerCase().replace(/ +/g, " ").replace(/-+/g, "-");
 }
 
 /**

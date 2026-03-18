@@ -17,7 +17,8 @@ export default function ContentEditor({ value, onChange, rows = 12, placeholder 
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
-    api.getAllNoteTitles()
+    api
+      .getAllNoteTitles()
       .then(setAllTitles)
       .catch(() => {});
   }, []);
@@ -115,7 +116,10 @@ export default function ContentEditor({ value, onChange, rows = 12, placeholder 
           {suggestions.map((title, i) => (
             <button
               key={title}
-              onMouseDown={(e) => { e.preventDefault(); commit(title); }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                commit(title);
+              }}
               onMouseEnter={() => setActiveIndex(i)}
               className={`flex items-center gap-2 w-full px-3 py-2 text-xs text-left transition-colors ${
                 activeIndex === i ? "bg-raised text-hi" : "text-md hover:bg-lift"

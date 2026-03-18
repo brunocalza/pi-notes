@@ -1,10 +1,19 @@
 import { useEffect, useState, useRef } from "react";
-import { Trash2, Link, Plus, X, Paperclip, Pencil, Check, Undo2, MoreHorizontal } from "lucide-react";
+import {
+  Trash2,
+  Link,
+  Plus,
+  X,
+  Paperclip,
+  Pencil,
+  Check,
+  Undo2,
+  MoreHorizontal,
+} from "lucide-react";
 import { api } from "../api";
 import { Note, AttachmentMeta } from "../types";
 import BlockEditor from "./BlockEditor";
 import { validateTag } from "../tags";
-
 
 interface Props {
   noteId: number;
@@ -15,7 +24,14 @@ interface Props {
   onRefresh: () => void;
 }
 
-export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick, onDeselect, onRefresh }: Props) {
+export default function NoteDetail({
+  noteId,
+  focusTitle,
+  onNavigate,
+  onTagClick,
+  onDeselect,
+  onRefresh,
+}: Props) {
   const [note, setNote] = useState<Note | null>(null);
   const [backlinks, setBacklinks] = useState<Note[]>([]);
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
@@ -38,9 +54,16 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
   const actionsPopoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    api.getNote(noteId).then((n) => {
-      if (n) { setNote(n); setTitle(n.title); setTags(n.tags); }
-    }).catch(console.error);
+    api
+      .getNote(noteId)
+      .then((n) => {
+        if (n) {
+          setNote(n);
+          setTitle(n.title);
+          setTags(n.tags);
+        }
+      })
+      .catch(console.error);
     api.getBacklinks(noteId).then(setBacklinks).catch(console.error);
     api.getAttachments(noteId).then(setAttachments).catch(console.error);
   }, [noteId]);
@@ -53,14 +76,18 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
   }, [focusTitle, note]);
 
   useEffect(() => {
-    api.getAllTags()
+    api
+      .getAllTags()
       .then((entries) => setAllTagsList(entries.map(([t]) => t)))
       .catch(() => {});
   }, []);
 
   useEffect(() => {
     if (tagInputOpen) setTimeout(() => tagInputRef.current?.focus(), 0);
-    else { setTagInputValue(""); setTagSuggestions([]); }
+    else {
+      setTagInputValue("");
+      setTagSuggestions([]);
+    }
   }, [tagInputOpen]);
 
   // Close tag input on outside click
@@ -80,7 +107,8 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
       if (
         !actionsButtonRef.current?.contains(e.target as Node) &&
         !actionsPopoverRef.current?.contains(e.target as Node)
-      ) setActionsOpen(false);
+      )
+        setActionsOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -91,7 +119,9 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
     try {
       await api.updateNote(note.id, newTitle.trim() || note.title, newContent, newTags);
       onRefresh();
-    } catch (e) { console.error("Failed to save note:", e); }
+    } catch (e) {
+      console.error("Failed to save note:", e);
+    }
   };
 
   const handleTagInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,7 +130,9 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
     setTagActiveIdx(0);
     const { normalized } = validateTag(v);
     setTagSuggestions(
-      v.trim() ? allTagsList.filter((t) => t.startsWith(normalized) && !tags.includes(t)).slice(0, 8) : []
+      v.trim()
+        ? allTagsList.filter((t) => t.startsWith(normalized) && !tags.includes(t)).slice(0, 8)
+        : []
     );
   };
 
@@ -120,11 +152,14 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
     save(title, note?.content ?? "", newTags);
   };
 
-  const showCreate = tagInputValue.trim().length > 0 && !allTagsList.includes(validateTag(tagInputValue).normalized);
+  const showCreate =
+    tagInputValue.trim().length > 0 && !allTagsList.includes(validateTag(tagInputValue).normalized);
   const totalItems = tagSuggestions.length + (showCreate ? 1 : 0);
 
   if (!note) {
-    return <div className="flex-1 flex items-center justify-center text-ghost text-sm">Loading...</div>;
+    return (
+      <div className="flex-1 flex items-center justify-center text-ghost text-sm">Loading...</div>
+    );
   }
 
   const handleAttachFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,9 +170,18 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
     const data = Array.from(new Uint8Array(buffer));
     try {
       const id = await api.addAttachment(note.id, file.name, file.type, data);
-      const meta: AttachmentMeta = { id, note_id: note.id, filename: file.name, mime_type: file.type, size: file.size, created_at: new Date().toISOString() };
+      const meta: AttachmentMeta = {
+        id,
+        note_id: note.id,
+        filename: file.name,
+        mime_type: file.type,
+        size: file.size,
+        created_at: new Date().toISOString(),
+      };
       setAttachments((prev) => [...prev, meta]);
-    } catch (e) { console.error("Failed to attach file:", e); }
+    } catch (e) {
+      console.error("Failed to attach file:", e);
+    }
   };
 
   const handleRenameAttachment = async (id: number, newFilename: string) => {
@@ -147,23 +191,29 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
     if (!trimmed || !old || trimmed === old.filename) return;
     try {
       await api.renameAttachment(id, trimmed);
-      setAttachments((prev) => prev.map((a) => a.id === id ? { ...a, filename: trimmed } : a));
+      setAttachments((prev) => prev.map((a) => (a.id === id ? { ...a, filename: trimmed } : a)));
       if (note) {
-        const newContent = note.content.split(`attachment:${old.filename}`).join(`attachment:${trimmed}`);
+        const newContent = note.content
+          .split(`attachment:${old.filename}`)
+          .join(`attachment:${trimmed}`);
         if (newContent !== note.content) {
           setNote({ ...note, content: newContent });
           await api.updateNote(note.id, title, newContent, tags);
           onRefresh();
         }
       }
-    } catch (e) { console.error("Failed to rename attachment:", e); }
+    } catch (e) {
+      console.error("Failed to rename attachment:", e);
+    }
   };
 
   const handleDeleteAttachment = async (id: number) => {
     try {
       await api.deleteAttachment(id);
       setAttachments((prev) => prev.filter((a) => a.id !== id));
-    } catch (e) { console.error("Failed to delete attachment:", e); }
+    } catch (e) {
+      console.error("Failed to delete attachment:", e);
+    }
   };
 
   const missingForAccept = [
@@ -180,7 +230,9 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
       await api.acceptNote(note.id);
       onDeselect();
       onRefresh();
-    } catch (e) { console.error("Failed to accept note:", e); }
+    } catch (e) {
+      console.error("Failed to accept note:", e);
+    }
   };
 
   const handleTrash = async () => {
@@ -189,7 +241,9 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
       await api.trashNote(note.id);
       onDeselect();
       onRefresh();
-    } catch (e) { console.error("Failed to trash note:", e); }
+    } catch (e) {
+      console.error("Failed to trash note:", e);
+    }
   };
 
   const handleDeletePermanently = async () => {
@@ -199,7 +253,9 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
       await api.deleteNote(note.id);
       onDeselect();
       onRefresh();
-    } catch (e) { console.error("Failed to delete note:", e); }
+    } catch (e) {
+      console.error("Failed to delete note:", e);
+    }
   };
 
   const handleMoveToInbox = async () => {
@@ -208,7 +264,9 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
       await api.moveToInbox(note.id);
       onDeselect();
       onRefresh();
-    } catch (e) { console.error("Failed to move note to inbox:", e); }
+    } catch (e) {
+      console.error("Failed to move note to inbox:", e);
+    }
   };
 
   return (
@@ -289,10 +347,12 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
 
           {/* Tags + attachments — single inline row */}
           <div className="flex flex-wrap items-center gap-1.5 mb-5">
-
             {/* Tag pills */}
             {tags.map((tag) => (
-              <span key={tag} className="flex items-center text-xs bg-lift rounded-full px-2.5 py-0.5 group">
+              <span
+                key={tag}
+                className="flex items-center text-xs bg-lift rounded-full px-2.5 py-0.5 group"
+              >
                 <span
                   onClick={() => onTagClick(tag)}
                   className="text-dim hover:text-lo cursor-pointer transition-colors select-none"
@@ -319,8 +379,16 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
                     onChange={handleTagInputChange}
                     onKeyDown={(e) => {
                       if (totalItems > 0) {
-                        if (e.key === "ArrowDown") { e.preventDefault(); setTagActiveIdx((i) => (i + 1) % totalItems); return; }
-                        if (e.key === "ArrowUp")   { e.preventDefault(); setTagActiveIdx((i) => (i - 1 + totalItems) % totalItems); return; }
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          setTagActiveIdx((i) => (i + 1) % totalItems);
+                          return;
+                        }
+                        if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          setTagActiveIdx((i) => (i - 1 + totalItems) % totalItems);
+                          return;
+                        }
                         if (e.key === "Enter") {
                           e.preventDefault();
                           const isCreate = tagActiveIdx === tagSuggestions.length && showCreate;
@@ -345,7 +413,10 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
                       {tagSuggestions.map((t, i) => (
                         <button
                           key={t}
-                          onMouseDown={(e) => { e.preventDefault(); commitTag(t); }}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            commitTag(t);
+                          }}
                           onMouseEnter={() => setTagActiveIdx(i)}
                           className={`flex w-full px-3 py-1.5 text-xs text-left transition-colors ${tagActiveIdx === i ? "bg-raised text-hi" : "text-md hover:bg-lift"}`}
                         >
@@ -354,7 +425,10 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
                       ))}
                       {showCreate && (
                         <button
-                          onMouseDown={(e) => { e.preventDefault(); commitTag(tagInputValue); }}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            commitTag(tagInputValue);
+                          }}
                           onMouseEnter={() => setTagActiveIdx(tagSuggestions.length)}
                           className={`flex w-full px-3 py-1.5 text-xs text-left transition-colors ${tagActiveIdx === tagSuggestions.length ? "bg-raised text-hi" : "text-dim hover:bg-lift"}`}
                         >
@@ -388,7 +462,10 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
 
             {/* Attachment chips */}
             {attachments.map((a) => (
-              <span key={a.id} className="flex items-center text-xs bg-lift rounded-full px-2.5 py-0.5 group">
+              <span
+                key={a.id}
+                className="flex items-center text-xs bg-lift rounded-full px-2.5 py-0.5 group"
+              >
                 <Paperclip size={9} className="text-ghost mr-1 shrink-0" />
                 {renamingId === a.id ? (
                   <input
@@ -413,7 +490,11 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
                       {a.filename}
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); setRenamingId(a.id); setRenameValue(a.filename); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRenamingId(a.id);
+                        setRenameValue(a.filename);
+                      }}
                       className="w-0 overflow-hidden group-hover:w-3 ml-0 group-hover:ml-1 transition-all duration-100 text-ghost hover:text-lo flex items-center shrink-0 cursor-pointer"
                       tabIndex={-1}
                       title="Rename"
@@ -440,8 +521,13 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
               <Paperclip size={11} />
               {attachments.length === 0 && <span>Attach</span>}
             </button>
-            <input ref={fileInputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleAttachFile} />
-
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf"
+              className="hidden"
+              onChange={handleAttachFile}
+            />
           </div>
 
           {/* Block editor */}
@@ -461,7 +547,9 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
             <div className="mt-8 pt-4 border-t bc-subtle">
               <div className="flex items-center gap-1.5 mb-2">
                 <Link size={12} className="text-ghost" />
-                <span className="text-xs font-semibold text-ghost uppercase tracking-wider">Linked by</span>
+                <span className="text-xs font-semibold text-ghost uppercase tracking-wider">
+                  Linked by
+                </span>
               </div>
               <div className="flex flex-col items-start gap-1">
                 {backlinks.map((bl) => (
@@ -479,8 +567,16 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
 
           <div className="mt-4 pt-4 border-t bc-subtle">
             <p className="text-xs text-ghost">
-              Created {new Date(note.created_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })} ·{" "}
-              Updated {new Date(note.updated_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
+              Created{" "}
+              {new Date(note.created_at).toLocaleString("en-GB", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}{" "}
+              · Updated{" "}
+              {new Date(note.updated_at).toLocaleString("en-GB", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
             </p>
           </div>
         </div>

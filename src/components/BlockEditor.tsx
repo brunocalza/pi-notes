@@ -49,20 +49,40 @@ const urlTransform = (url: string) => {
   return "";
 };
 
-function AttachmentImage({ filename, attachments, alt, width, height }: {
-  filename: string; attachments: AttachmentMeta[]; alt?: string; width?: string; height?: string;
+function AttachmentImage({
+  filename,
+  attachments,
+  alt,
+  width,
+  height,
+}: {
+  filename: string;
+  attachments: AttachmentMeta[];
+  alt?: string;
+  width?: string;
+  height?: string;
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const att = attachments.find((a) => a.filename === filename);
   useEffect(() => {
     if (!att) return;
-    api.getAttachmentData(att.id)
+    api
+      .getAttachmentData(att.id)
       .then((b64) => setSrc(`data:${att.mime_type};base64,${b64}`))
       .catch(console.error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [att?.id]);
-  if (!att) return <span className="text-ghost text-xs italic">[attachment not found: {filename}]</span>;
+  if (!att)
+    return <span className="text-ghost text-xs italic">[attachment not found: {filename}]</span>;
   if (!src) return <span className="text-ghost text-xs italic">Loading {filename}…</span>;
-  return <img src={src} alt={alt ?? filename} className="rounded-lg" style={{ maxWidth: "100%", width, height }} />;
+  return (
+    <img
+      src={src}
+      alt={alt ?? filename}
+      className="rounded-lg"
+      style={{ maxWidth: "100%", width, height }}
+    />
+  );
 }
 
 function preprocessWikilinks(content: string): string {
@@ -94,7 +114,10 @@ export default function BlockEditor({ content, onCommit, onNavigate, attachments
   const [activeIdx, setActiveIdx] = useState(0);
 
   useEffect(() => {
-    api.getAllNoteTitles().then(setAllTitles).catch(() => {});
+    api
+      .getAllNoteTitles()
+      .then(setAllTitles)
+      .catch(() => {});
   }, []);
 
   // Close popover on outside click
@@ -141,7 +164,10 @@ export default function BlockEditor({ content, onCommit, onNavigate, attachments
 
   // Apply inline markdown wrapping or line prefix
   const applyMarkdown = useCallback(
-    (blockIdx: number, type: "bold" | "italic" | "code" | "link" | "heading" | "blockquote" | "bullet") => {
+    (
+      blockIdx: number,
+      type: "bold" | "italic" | "code" | "link" | "heading" | "blockquote" | "bullet"
+    ) => {
       const ta = taRef.current;
       if (!ta) return;
       const start = ta.selectionStart;
@@ -165,14 +191,20 @@ export default function BlockEditor({ content, onCommit, onNavigate, attachments
         }
       } else {
         const [open, close] =
-          type === "bold"   ? ["**", "**"] :
-          type === "italic" ? ["*",  "*"]  :
-          type === "code"   ? ["`",  "`"]  :
-                              ["[",  "]()"]; // link
+          type === "bold"
+            ? ["**", "**"]
+            : type === "italic"
+              ? ["*", "*"]
+              : type === "code"
+                ? ["`", "`"]
+                : ["[", "]()"]; // link
         const inserted = open + sel + close;
         nb[blockIdx] = text.slice(0, start) + inserted + text.slice(end);
         setBlocks(nb);
-        const cursorOffset = type === "link" && sel.length === 0 ? open.length : open.length + sel.length + close.length;
+        const cursorOffset =
+          type === "link" && sel.length === 0
+            ? open.length
+            : open.length + sel.length + close.length;
         setTimeout(() => {
           const pos = start + cursorOffset;
           ta.setSelectionRange(
@@ -215,11 +247,7 @@ export default function BlockEditor({ content, onCommit, onNavigate, attachments
   const commitBlock = (i: number, value: string) => {
     setSuggestions([]);
     const sub = toBlocks(value);
-    const merged = [
-      ...blocks.slice(0, i),
-      ...sub,
-      ...blocks.slice(i + 1),
-    ].filter((b) => b.trim());
+    const merged = [...blocks.slice(0, i), ...sub, ...blocks.slice(i + 1)].filter((b) => b.trim());
 
     const final = merged.length > 0 ? merged : [""];
     setBlocks(final);
@@ -242,7 +270,9 @@ export default function BlockEditor({ content, onCommit, onNavigate, attachments
                 try {
                   const linked = await api.getNoteByTitle(title);
                   if (linked) onNavigate(linked.id);
-                } catch {}
+                } catch {
+                  // navigation failure is non-fatal
+                }
               }}
             >
               {children}
@@ -261,7 +291,15 @@ export default function BlockEditor({ content, onCommit, onNavigate, attachments
           const [filepart, query] = raw.split("?");
           const filename = decodeURIComponent(filepart);
           const params = new URLSearchParams(query);
-          return <AttachmentImage filename={filename} attachments={attachments} alt={alt} width={params.get("w") ?? undefined} height={params.get("h") ?? undefined} />;
+          return (
+            <AttachmentImage
+              filename={filename}
+              attachments={attachments}
+              alt={alt}
+              width={params.get("w") ?? undefined}
+              height={params.get("h") ?? undefined}
+            />
+          );
         }
         return <img src={src} alt={alt} className="max-w-full rounded-lg" />;
       },
@@ -317,18 +355,50 @@ export default function BlockEditor({ content, onCommit, onNavigate, attachments
                   }
                 }
                 // Markdown formatting shortcuts
-                if (e.ctrlKey && !e.shiftKey && e.key === "b") { e.preventDefault(); applyMarkdown(i, "bold"); return; }
-                if (e.ctrlKey && !e.shiftKey && e.key === "i") { e.preventDefault(); applyMarkdown(i, "italic"); return; }
-                if (e.ctrlKey && !e.shiftKey && e.key === "k") { e.preventDefault(); applyMarkdown(i, "link"); return; }
-                if (e.ctrlKey && !e.shiftKey && e.key === "`") { e.preventDefault(); applyMarkdown(i, "code"); return; }
-                if (e.ctrlKey && e.shiftKey && e.key === "H") { e.preventDefault(); applyMarkdown(i, "heading"); return; }
-                if (e.ctrlKey && e.shiftKey && e.key === "B") { e.preventDefault(); applyMarkdown(i, "blockquote"); return; }
-                if (e.ctrlKey && e.shiftKey && e.key === "U") { e.preventDefault(); applyMarkdown(i, "bullet"); return; }
+                if (e.ctrlKey && !e.shiftKey && e.key === "b") {
+                  e.preventDefault();
+                  applyMarkdown(i, "bold");
+                  return;
+                }
+                if (e.ctrlKey && !e.shiftKey && e.key === "i") {
+                  e.preventDefault();
+                  applyMarkdown(i, "italic");
+                  return;
+                }
+                if (e.ctrlKey && !e.shiftKey && e.key === "k") {
+                  e.preventDefault();
+                  applyMarkdown(i, "link");
+                  return;
+                }
+                if (e.ctrlKey && !e.shiftKey && e.key === "`") {
+                  e.preventDefault();
+                  applyMarkdown(i, "code");
+                  return;
+                }
+                if (e.ctrlKey && e.shiftKey && e.key === "H") {
+                  e.preventDefault();
+                  applyMarkdown(i, "heading");
+                  return;
+                }
+                if (e.ctrlKey && e.shiftKey && e.key === "B") {
+                  e.preventDefault();
+                  applyMarkdown(i, "blockquote");
+                  return;
+                }
+                if (e.ctrlKey && e.shiftKey && e.key === "U") {
+                  e.preventDefault();
+                  applyMarkdown(i, "bullet");
+                  return;
+                }
 
                 if (e.key === "Escape") (e.target as HTMLTextAreaElement).blur();
               }}
               className="w-full bg-transparent outline-none resize-none text-sm text-md leading-relaxed"
-              style={{ fontFamily: '"Lora", Georgia, serif', minHeight: "1.4em", overflow: "hidden" }}
+              style={{
+                fontFamily: '"Lora", Georgia, serif',
+                minHeight: "1.4em",
+                overflow: "hidden",
+              }}
               rows={1}
             />
 
@@ -340,7 +410,10 @@ export default function BlockEditor({ content, onCommit, onNavigate, attachments
                 {suggestions.map((title, si) => (
                   <button
                     key={title}
-                    onMouseDown={(e) => { e.preventDefault(); commitWikilink(title, i); }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      commitWikilink(title, i);
+                    }}
                     onMouseEnter={() => setActiveIdx(si)}
                     className={`flex items-center gap-2 w-full px-3 py-2 text-xs text-left transition-colors ${
                       activeIdx === si ? "bg-raised text-hi" : "text-md hover:bg-lift"

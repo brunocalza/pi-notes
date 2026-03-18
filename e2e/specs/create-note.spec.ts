@@ -31,7 +31,10 @@ describe("Create Note", () => {
       const inputs = document.querySelectorAll("input");
       for (const input of inputs) {
         if (input.placeholder === "Untitled" || input.value === "") {
-          const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+          const setter = Object.getOwnPropertyDescriptor(
+            window.HTMLInputElement.prototype,
+            "value"
+          )?.set;
           if (setter) setter.call(input, "My new note");
           input.dispatchEvent(new Event("input", { bubbles: true }));
           return;

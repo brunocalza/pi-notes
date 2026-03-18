@@ -3,10 +3,10 @@
 
 /** Wait for the sidebar to render before running tests. */
 export async function waitForApp() {
-  await browser.waitUntil(
-    () => browser.execute(() => !!document.querySelector("nav span")),
-    { timeout: 15_000, timeoutMsg: "Sidebar not loaded" }
-  );
+  await browser.waitUntil(() => browser.execute(() => !!document.querySelector("nav span")), {
+    timeout: 15_000,
+    timeoutMsg: "Sidebar not loaded",
+  });
 }
 
 /** Click a sidebar nav item by its label text. */
@@ -72,6 +72,7 @@ export async function openActionsPopover() {
 export async function invoke<T>(command: string, args: Record<string, unknown> = {}): Promise<T> {
   return browser.execute(
     async (cmd: string, a: Record<string, unknown>) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const inv = (window as any).__TAURI_INTERNALS__.invoke;
       return await inv(cmd, a);
     },

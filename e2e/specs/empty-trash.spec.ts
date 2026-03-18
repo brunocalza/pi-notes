@@ -10,7 +10,11 @@ describe("Empty Trash", () => {
 
   it("permanently deletes all trashed notes when Empty Trash is clicked", async () => {
     // Create and trash a note directly via Tauri API
-    const id = await invoke<number>("insert_note", { title: "Note to be trashed", content: "", tags: [] });
+    const id = await invoke<number>("insert_note", {
+      title: "Note to be trashed",
+      content: "",
+      tags: [],
+    });
     await invoke("trash_note", { id });
 
     // Navigate away and back to Trash to trigger a UI refresh

@@ -27,9 +27,8 @@ describe("isValidTag", () => {
   });
 
   describe("invalid separator combinations", () => {
-    it.each(["-rust", "rust-", "rust--", "rust//", "/rust", "rust/"])(
-      "rejects %s",
-      (tag) => expect(isValidTag(tag)).toBe(false)
+    it.each(["-rust", "rust-", "rust--", "rust//", "/rust", "rust/"])("rejects %s", (tag) =>
+      expect(isValidTag(tag)).toBe(false)
     );
   });
 
@@ -40,9 +39,8 @@ describe("isValidTag", () => {
   });
 
   describe("invalid characters", () => {
-    it.each(["Rust", "rust_tag", "café"])(
-      "rejects %s",
-      (tag) => expect(isValidTag(tag)).toBe(false)
+    it.each(["Rust", "rust_tag", "café"])("rejects %s", (tag) =>
+      expect(isValidTag(tag)).toBe(false)
     );
   });
 

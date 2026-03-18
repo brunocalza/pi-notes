@@ -62,9 +62,7 @@ describe("NoteDetail", () => {
 
   it("renders backlinks when present", async () => {
     vi.mocked(api.getNote).mockResolvedValue(makeNote());
-    vi.mocked(api.getBacklinks).mockResolvedValue([
-      makeNote({ id: 2, title: "Linking Note" }),
-    ]);
+    vi.mocked(api.getBacklinks).mockResolvedValue([makeNote({ id: 2, title: "Linking Note" })]);
 
     render(<NoteDetail {...defaultProps} />);
 

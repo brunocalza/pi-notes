@@ -4,6 +4,7 @@ use rusqlite::{params, Connection};
 use std::path::PathBuf;
 
 use crate::models::{AttachmentMeta, Note};
+use crate::tags::normalize_tag;
 
 fn config_path() -> PathBuf {
     let base = dirs::data_local_dir().unwrap_or_else(|| PathBuf::from("."));
@@ -35,7 +36,9 @@ pub fn save_db_path_config(path: &str) -> Result<()> {
 
 pub fn clear_db_path_config() -> Result<()> {
     let p = config_path();
-    if p.exists() { std::fs::remove_file(p)?; }
+    if p.exists() {
+        std::fs::remove_file(p)?;
+    }
     Ok(())
 }
 
@@ -292,9 +295,13 @@ pub fn get_note(conn: &Connection, id: i64) -> Result<Option<Note>> {
 }
 
 pub fn get_inbox(conn: &Connection) -> Result<Vec<Note>> {
-    let sql = format!("{SELECT} WHERE n.in_inbox = 1 AND n.trashed = 0 GROUP BY n.id ORDER BY n.created_at DESC");
+    let sql = format!(
+        "{SELECT} WHERE n.in_inbox = 1 AND n.trashed = 0 GROUP BY n.id ORDER BY n.created_at DESC"
+    );
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map([], row_to_note)?.collect::<rusqlite::Result<_>>()?;
+    let rows = stmt
+        .query_map([], row_to_note)?
+        .collect::<rusqlite::Result<_>>()?;
     Ok(rows)
 }
 
@@ -314,7 +321,10 @@ pub fn restore_note(conn: &Connection, id: i64) -> Result<()> {
 }
 
 pub fn move_to_inbox(conn: &Connection, id: i64) -> Result<()> {
-    conn.execute("UPDATE notes SET trashed = 0, in_inbox = 1 WHERE id = ?1", params![id])?;
+    conn.execute(
+        "UPDATE notes SET trashed = 0, in_inbox = 1 WHERE id = ?1",
+        params![id],
+    )?;
     Ok(())
 }
 
@@ -331,7 +341,9 @@ pub fn empty_trash(conn: &Connection) -> Result<()> {
 pub fn get_trash(conn: &Connection) -> Result<Vec<Note>> {
     let sql = format!("{SELECT} WHERE n.trashed = 1 GROUP BY n.id ORDER BY n.created_at DESC");
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map([], row_to_note)?.collect::<rusqlite::Result<_>>()?;
+    let rows = stmt
+        .query_map([], row_to_note)?
+        .collect::<rusqlite::Result<_>>()?;
     Ok(rows)
 }
 
@@ -343,7 +355,13 @@ pub fn set_note_image(conn: &Connection, id: i64, path: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn update_note(conn: &Connection, id: i64, title: &str, content: &str, tags: &[String]) -> Result<()> {
+pub fn update_note(
+    conn: &Connection,
+    id: i64,
+    title: &str,
+    content: &str,
+    tags: &[String],
+) -> Result<()> {
     let now = Utc::now().timestamp_millis();
     conn.execute(
         "UPDATE notes SET title = ?1, content = ?2, updated_at = ?3 WHERE id = ?4",
@@ -371,21 +389,29 @@ pub fn search_notes(conn: &Connection, query: &str) -> Result<Vec<Note>> {
          ORDER BY n.created_at DESC"
     );
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(params![fts_query, like_query], row_to_note)?.collect::<rusqlite::Result<_>>()?;
+    let rows = stmt
+        .query_map(params![fts_query, like_query], row_to_note)?
+        .collect::<rusqlite::Result<_>>()?;
     Ok(rows)
 }
 
 pub fn get_recent_notes(conn: &Connection, limit: i64) -> Result<Vec<Note>> {
     let sql = format!("{SELECT} WHERE n.trashed = 0 AND n.in_inbox = 0 GROUP BY n.id ORDER BY n.updated_at DESC LIMIT ?1");
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(params![limit], row_to_note)?.collect::<rusqlite::Result<_>>()?;
+    let rows = stmt
+        .query_map(params![limit], row_to_note)?
+        .collect::<rusqlite::Result<_>>()?;
     Ok(rows)
 }
 
 pub fn list_notes(conn: &Connection) -> Result<Vec<Note>> {
-    let sql = format!("{SELECT} WHERE n.in_inbox = 0 AND n.trashed = 0 GROUP BY n.id ORDER BY n.created_at DESC");
+    let sql = format!(
+        "{SELECT} WHERE n.in_inbox = 0 AND n.trashed = 0 GROUP BY n.id ORDER BY n.created_at DESC"
+    );
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map([], row_to_note)?.collect::<rusqlite::Result<_>>()?;
+    let rows = stmt
+        .query_map([], row_to_note)?
+        .collect::<rusqlite::Result<_>>()?;
     Ok(rows)
 }
 
@@ -396,12 +422,14 @@ pub fn get_all_tags(conn: &Connection) -> Result<Vec<(String, i64)>> {
          WHERE n.in_inbox = 0 AND n.trashed = 0
          GROUP BY t.tag ORDER BY 1",
     )?;
-    let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<rusqlite::Result<_>>()?;
+    let rows = stmt
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect::<rusqlite::Result<_>>()?;
     Ok(rows)
 }
 
 pub fn rename_tag(conn: &Connection, old_tag: &str, new_tag: &str) -> Result<()> {
-    let new_tag = new_tag.trim().trim_start_matches('#').to_lowercase();
+    let new_tag = normalize_tag(new_tag);
     if new_tag.is_empty() || new_tag == old_tag {
         return Ok(());
     }
@@ -423,9 +451,12 @@ pub fn delete_tag(conn: &Connection, tag: &str) -> Result<()> {
 }
 
 pub fn get_all_note_titles(conn: &Connection) -> Result<Vec<String>> {
-    let mut stmt =
-        conn.prepare("SELECT title FROM notes WHERE title != '' AND trashed = 0 ORDER BY title COLLATE NOCASE")?;
-    let rows = stmt.query_map([], |row| row.get(0))?.collect::<rusqlite::Result<_>>()?;
+    let mut stmt = conn.prepare(
+        "SELECT title FROM notes WHERE title != '' AND trashed = 0 ORDER BY title COLLATE NOCASE",
+    )?;
+    let rows = stmt
+        .query_map([], |row| row.get(0))?
+        .collect::<rusqlite::Result<_>>()?;
     Ok(rows)
 }
 
@@ -439,7 +470,9 @@ pub fn get_notes_by_tag(conn: &Connection, tag: &str) -> Result<Vec<Note>> {
          ORDER BY n.created_at DESC"
     );
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(params![tag], row_to_note)?.collect::<rusqlite::Result<_>>()?;
+    let rows = stmt
+        .query_map(params![tag], row_to_note)?
+        .collect::<rusqlite::Result<_>>()?;
     Ok(rows)
 }
 
@@ -463,14 +496,16 @@ pub fn get_backlinks(conn: &Connection, id: i64) -> Result<Vec<Note>> {
          ORDER BY n.updated_at DESC"
     );
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(params![pattern, id], row_to_note)?.collect::<rusqlite::Result<_>>()?;
+    let rows = stmt
+        .query_map(params![pattern, id], row_to_note)?
+        .collect::<rusqlite::Result<_>>()?;
     Ok(rows)
 }
 
 fn sync_tags(conn: &Connection, note_id: i64, tags: &[String]) -> Result<()> {
     conn.execute("DELETE FROM note_tags WHERE note_id = ?1", params![note_id])?;
     for tag in tags {
-        let tag = tag.trim().trim_start_matches('#').to_lowercase();
+        let tag = normalize_tag(tag);
         if !tag.is_empty() {
             conn.execute(
                 "INSERT OR IGNORE INTO note_tags (note_id, tag) VALUES (?1, ?2)",
@@ -496,7 +531,13 @@ fn create_attachments_table_if_needed(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-pub fn add_attachment(conn: &Connection, note_id: i64, filename: &str, mime_type: &str, data: &[u8]) -> Result<i64> {
+pub fn add_attachment(
+    conn: &Connection,
+    note_id: i64,
+    filename: &str,
+    mime_type: &str,
+    data: &[u8],
+) -> Result<i64> {
     let now = Utc::now().timestamp_millis();
     let size = data.len() as i64;
     conn.execute(
@@ -510,17 +551,19 @@ pub fn get_attachments(conn: &Connection, note_id: i64) -> Result<Vec<Attachment
     let mut stmt = conn.prepare(
         "SELECT id, note_id, filename, mime_type, size, created_at FROM note_attachments WHERE note_id = ?1 ORDER BY created_at ASC",
     )?;
-    let rows = stmt.query_map(params![note_id], |row| {
-        let created_ms: i64 = row.get(5)?;
-        Ok(AttachmentMeta {
-            id: row.get(0)?,
-            note_id: row.get(1)?,
-            filename: row.get(2)?,
-            mime_type: row.get(3)?,
-            size: row.get(4)?,
-            created_at: ms_to_dt(created_ms),
-        })
-    })?.collect::<rusqlite::Result<_>>()?;
+    let rows = stmt
+        .query_map(params![note_id], |row| {
+            let created_ms: i64 = row.get(5)?;
+            Ok(AttachmentMeta {
+                id: row.get(0)?,
+                note_id: row.get(1)?,
+                filename: row.get(2)?,
+                mime_type: row.get(3)?,
+                size: row.get(4)?,
+                created_at: ms_to_dt(created_ms),
+            })
+        })?
+        .collect::<rusqlite::Result<_>>()?;
     Ok(rows)
 }
 
@@ -528,17 +571,19 @@ pub fn get_attachment_meta(conn: &Connection, id: i64) -> Result<Option<Attachme
     let mut stmt = conn.prepare(
         "SELECT id, note_id, filename, mime_type, size, created_at FROM note_attachments WHERE id = ?1",
     )?;
-    Ok(stmt.query_row(params![id], |row| {
-        let created_ms: i64 = row.get(5)?;
-        Ok(AttachmentMeta {
-            id: row.get(0)?,
-            note_id: row.get(1)?,
-            filename: row.get(2)?,
-            mime_type: row.get(3)?,
-            size: row.get(4)?,
-            created_at: ms_to_dt(created_ms),
+    Ok(stmt
+        .query_row(params![id], |row| {
+            let created_ms: i64 = row.get(5)?;
+            Ok(AttachmentMeta {
+                id: row.get(0)?,
+                note_id: row.get(1)?,
+                filename: row.get(2)?,
+                mime_type: row.get(3)?,
+                size: row.get(4)?,
+                created_at: ms_to_dt(created_ms),
+            })
         })
-    }).ok())
+        .ok())
 }
 
 pub fn get_attachment_data(conn: &Connection, id: i64) -> Result<Vec<u8>> {

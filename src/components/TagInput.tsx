@@ -20,7 +20,8 @@ export default function TagInput({ tags, onAdd, onRemove }: Props) {
 
   // Load all existing tags once
   useEffect(() => {
-    api.getAllTags()
+    api
+      .getAllTags()
       .then((entries) => setAllTags(entries.map(([t]) => t)))
       .catch(() => {});
   }, []);
@@ -34,9 +35,7 @@ export default function TagInput({ tags, onAdd, onRemove }: Props) {
 
   // "Create new" only when the normalized value doesn't already exist in the tag library
   const showCreate =
-    input.trim().length > 0 &&
-    !tags.includes(normalized) &&
-    !allTags.includes(normalized);
+    input.trim().length > 0 && !tags.includes(normalized) && !allTags.includes(normalized);
 
   const totalItems = suggestions.length + (showCreate ? 1 : 0);
   const createIndex = suggestions.length; // last item
@@ -120,10 +119,7 @@ export default function TagInput({ tags, onAdd, onRemove }: Props) {
               className="flex items-center gap-1 text-xs bg-lift border bc-ui text-lo rounded px-2 py-0.5"
             >
               #{tag}
-              <button
-                onClick={() => onRemove(tag)}
-                className="text-ghost hover:text-lo ml-0.5"
-              >
+              <button onClick={() => onRemove(tag)} className="text-ghost hover:text-lo ml-0.5">
                 <X size={10} />
               </button>
             </span>
@@ -157,12 +153,13 @@ export default function TagInput({ tags, onAdd, onRemove }: Props) {
             {suggestions.map((tag, i) => (
               <button
                 key={tag}
-                onMouseDown={(e) => { e.preventDefault(); commit(tag); }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  commit(tag);
+                }}
                 onMouseEnter={() => setActiveIndex(i)}
                 className={`flex items-center gap-2 w-full px-3 py-2 text-xs text-left transition-colors ${
-                  activeIndex === i
-                    ? "bg-raised text-md"
-                    : "text-dim hover:bg-lift"
+                  activeIndex === i ? "bg-raised text-md" : "text-dim hover:bg-lift"
                 }`}
               >
                 <Hash size={11} className="text-ghost shrink-0" />
@@ -175,23 +172,20 @@ export default function TagInput({ tags, onAdd, onRemove }: Props) {
 
             {showCreate && (
               <>
-                {suggestions.length > 0 && (
-                  <div className="border-t bc-ui" />
-                )}
+                {suggestions.length > 0 && <div className="border-t bc-ui" />}
                 <button
-                  onMouseDown={(e) => { e.preventDefault(); commit(input); }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    commit(input);
+                  }}
                   onMouseEnter={() => setActiveIndex(createIndex)}
                   className={`flex items-center gap-2 w-full px-3 py-2 text-xs text-left transition-colors ${
-                    activeIndex === createIndex
-                      ? "bg-raised text-md"
-                      : "text-dim hover:bg-lift"
+                    activeIndex === createIndex ? "bg-raised text-md" : "text-dim hover:bg-lift"
                   }`}
                 >
                   <span>
                     Use{" "}
-                    <span className="text-accent font-medium">
-                      #{normalized || input.trim()}
-                    </span>{" "}
+                    <span className="text-accent font-medium">#{normalized || input.trim()}</span>{" "}
                     as new tag
                   </span>
                 </button>

@@ -45,7 +45,10 @@ describe("TagInput", () => {
   });
 
   it("shows suggestions from existing tags", async () => {
-    vi.mocked(api.getAllTags).mockResolvedValue([["react", 3], ["react-native", 1]]);
+    vi.mocked(api.getAllTags).mockResolvedValue([
+      ["react", 3],
+      ["react-native", 1],
+    ]);
 
     render(<TagInput tags={[]} onAdd={onAdd} onRemove={onRemove} />);
 
@@ -55,9 +58,9 @@ describe("TagInput", () => {
     await userEvent.type(screen.getByPlaceholderText("Add tag..."), "react");
     // Tag name is split across styled spans; match the button by accessible name instead
     await waitFor(() => {
-      expect(screen.getAllByRole("button").some(
-        (btn) => btn.textContent?.includes("react-native")
-      )).toBe(true);
+      expect(
+        screen.getAllByRole("button").some((btn) => btn.textContent?.includes("react-native"))
+      ).toBe(true);
     });
   });
 
@@ -65,9 +68,9 @@ describe("TagInput", () => {
     render(<TagInput tags={[]} onAdd={onAdd} onRemove={onRemove} />);
     await userEvent.type(screen.getByPlaceholderText("Add tag..."), "brandnew");
     await waitFor(() => {
-      expect(screen.getAllByRole("button").some(
-        (btn) => btn.textContent?.includes("brandnew")
-      )).toBe(true);
+      expect(
+        screen.getAllByRole("button").some((btn) => btn.textContent?.includes("brandnew"))
+      ).toBe(true);
     });
   });
 

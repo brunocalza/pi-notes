@@ -14,7 +14,14 @@ describe("NoteCard", () => {
   });
 
   it("renders 'Untitled' when title is empty", () => {
-    render(<NoteCard note={makeNote({ title: "" })} selected={false} onClick={vi.fn()} onTagClick={vi.fn()} />);
+    render(
+      <NoteCard
+        note={makeNote({ title: "" })}
+        selected={false}
+        onClick={vi.fn()}
+        onTagClick={vi.fn()}
+      />
+    );
     expect(screen.getByText("Untitled")).toBeInTheDocument();
   });
 

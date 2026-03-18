@@ -1,4 +1,13 @@
-import { waitForApp, clickNav, waitForText, assertAbsent, clickNoteCard, clickButton, openActionsPopover, invoke } from "../helpers.js";
+import {
+  waitForApp,
+  clickNav,
+  waitForText,
+  assertAbsent,
+  clickNoteCard,
+  clickButton,
+  openActionsPopover,
+  invoke,
+} from "../helpers.js";
 
 describe("Move to Trash", () => {
   before(waitForApp);
