@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "../api";
 import {
   Inbox,
@@ -12,19 +12,22 @@ import {
   Moon,
   Settings,
 } from "lucide-react";
-import { TagEntry, View, ColorTheme } from "../types";
+import { Note, TagEntry, View, ColorTheme } from "../types";
 
 interface Props {
   view: View;
   tags: TagEntry[];
   inboxCount: number;
+  recentNotes: Note[];
   theme: "dark" | "light";
   colorTheme: ColorTheme;
+  onSelectNote: (id: number) => void;
   onViewChange: (v: View) => void;
   onTagRename: () => void;
   onTagDelete: () => void;
   onThemeToggle: () => void;
   onColorThemeChange: (t: ColorTheme) => void;
+  onDbPathChange: () => void;
 }
 
 const THEMES: Array<{
@@ -44,19 +47,43 @@ export default function Sidebar({
   view,
   tags,
   inboxCount,
+  recentNotes,
   theme,
   colorTheme,
   onViewChange,
   onTagRename,
   onTagDelete,
+  onSelectNote,
   onThemeToggle,
   onColorThemeChange,
+  onDbPathChange,
 }: Props) {
   const [tagSearch, setTagSearch] = useState("");
   const [renameTag, setRenameTag] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [hoveredTag, setHoveredTag] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [dbPath, setDbPath] = useState("");
+  const [dbPathInput, setDbPathInput] = useState("");
+  const [dbPathError, setDbPathError] = useState("");
+
+  useEffect(() => {
+    if (settingsOpen) {
+      api.getDbPathSetting().then((p) => { setDbPath(p); setDbPathInput(p); setDbPathError(""); }).catch(console.error);
+    }
+  }, [settingsOpen]);
+
+  const handleDbPathSave = async () => {
+    if (dbPathInput === dbPath) return;
+    try {
+      await api.setDbPathSetting(dbPathInput);
+      setDbPath(dbPathInput);
+      setDbPathError("");
+      onDbPathChange();
+    } catch (e) {
+      setDbPathError(String(e));
+    }
+  };
 
   const isActive = (v: View) => {
     if (typeof v === "string" && typeof view === "string") return view === v;
@@ -134,6 +161,25 @@ export default function Sidebar({
           <span>Trash</span>
         </div>
       </nav>
+
+      {/* Recent notes */}
+      {recentNotes.length > 0 && (
+        <div className="px-2 mt-4 shrink-0">
+          <p className="text-xs font-semibold text-ghost uppercase tracking-wider px-2 mb-1">Recent</p>
+          <div className="flex flex-col gap-0.5">
+            {recentNotes.map((note) => (
+              <button
+                key={note.id}
+                onClick={() => onSelectNote(note.id)}
+                className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs text-left text-dim hover:text-lo hover:bg-field transition-colors truncate"
+                title={note.title || "Untitled"}
+              >
+                <span className="truncate">{note.title || <span className="italic text-ghost">Untitled</span>}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tags — scrollable */}
       <div className="flex-1 min-h-0 overflow-y-auto mt-6 px-4">
@@ -308,6 +354,25 @@ export default function Sidebar({
                 Light
               </button>
             </div>
+          </div>
+
+          {/* Storage */}
+          <div className="border-t bc-subtle mt-4 pt-4">
+            <p className="text-[10px] font-semibold text-ghost uppercase tracking-wider mb-2">
+              Storage
+            </p>
+            <p className="text-[10px] text-ghost mb-1">Database path</p>
+            <input
+              value={dbPathInput}
+              onChange={(e) => { setDbPathInput(e.target.value); setDbPathError(""); }}
+              onBlur={handleDbPathSave}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.currentTarget.blur(); } }}
+              spellCheck={false}
+              className="w-full bg-field border bc-ui rounded px-2 py-1 text-[11px] text-lo outline-none focus:bc-focus font-mono"
+            />
+            {dbPathError && (
+              <p className="text-[10px] text-danger mt-1 break-all">{dbPathError}</p>
+            )}
           </div>
         </div>
       )}

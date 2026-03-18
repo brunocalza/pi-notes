@@ -22,6 +22,9 @@ const defaultProps = {
   onTagDelete: vi.fn(),
   onThemeToggle: vi.fn(),
   onColorThemeChange: vi.fn(),
+  onDbPathChange: vi.fn(),
+  onSelectNote: vi.fn(),
+  recentNotes: [],
 };
 
 describe("Sidebar", () => {

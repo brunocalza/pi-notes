@@ -154,6 +154,31 @@ fn get_backlinks(state: State<DbState>, id: i64) -> Result<Vec<Note>, String> {
 }
 
 #[tauri::command]
+fn get_recent_notes(state: State<DbState>) -> Result<Vec<Note>, String> {
+    let conn = state.0.lock().map_err(map_err)?;
+    db::get_recent_notes(&conn, 5).map_err(map_err)
+}
+
+#[tauri::command]
+fn get_db_path_setting() -> String {
+    db::get_db_path().to_string_lossy().to_string()
+}
+
+#[tauri::command]
+fn set_db_path_setting(state: State<DbState>, path: String) -> Result<(), String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        db::clear_db_path_config().map_err(map_err)?;
+    } else {
+        db::save_db_path_config(trimmed).map_err(map_err)?;
+    }
+    let new_conn = db::init().map_err(map_err)?;
+    let mut conn = state.0.lock().map_err(map_err)?;
+    *conn = new_conn;
+    Ok(())
+}
+
+#[tauri::command]
 fn add_attachment(
     state: State<DbState>,
     note_id: i64,
@@ -237,6 +262,9 @@ pub fn run() {
             get_note_by_title,
             get_backlinks,
             empty_trash,
+            get_recent_notes,
+            get_db_path_setting,
+            set_db_path_setting,
             add_attachment,
             get_attachments,
             get_attachment_data,

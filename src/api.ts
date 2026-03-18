@@ -5,6 +5,9 @@ export const api = {
   listNotes: () =>
     invoke<Note[]>("list_notes"),
 
+  getRecentNotes: () =>
+    invoke<Note[]>("get_recent_notes"),
+
   searchNotes: (query: string) =>
     invoke<Note[]>("search_notes", { query }),
 
@@ -55,6 +58,12 @@ export const api = {
 
   emptyTrash: () =>
     invoke<void>("empty_trash"),
+
+  getDbPathSetting: () =>
+    invoke<string>("get_db_path_setting"),
+
+  setDbPathSetting: (path: string) =>
+    invoke<void>("set_db_path_setting", { path }),
 
   addAttachment: (noteId: number, filename: string, mimeType: string, data: number[]) =>
     invoke<number>("add_attachment", { noteId, filename, mimeType, data }),

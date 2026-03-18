@@ -5,9 +5,22 @@ use std::path::PathBuf;
 
 use crate::models::{AttachmentMeta, Note};
 
+fn config_path() -> PathBuf {
+    let base = dirs::data_local_dir().unwrap_or_else(|| PathBuf::from("."));
+    let dir = base.join("pi-notes");
+    std::fs::create_dir_all(&dir).ok();
+    dir.join("db_path.conf")
+}
+
 pub fn get_db_path() -> PathBuf {
     if let Ok(path) = std::env::var("PI_NOTES_DB_PATH") {
         return PathBuf::from(path);
+    }
+    if let Ok(s) = std::fs::read_to_string(config_path()) {
+        let s = s.trim().to_string();
+        if !s.is_empty() {
+            return PathBuf::from(s);
+        }
     }
     let base = dirs::data_local_dir().unwrap_or_else(|| PathBuf::from("."));
     let dir = base.join("pi-notes");
@@ -15,8 +28,26 @@ pub fn get_db_path() -> PathBuf {
     dir.join("notes.db")
 }
 
+pub fn save_db_path_config(path: &str) -> Result<()> {
+    std::fs::write(config_path(), path)?;
+    Ok(())
+}
+
+pub fn clear_db_path_config() -> Result<()> {
+    let p = config_path();
+    if p.exists() { std::fs::remove_file(p)?; }
+    Ok(())
+}
+
 pub fn init() -> Result<Connection> {
-    let conn = Connection::open(get_db_path())?;
+    init_at(&get_db_path())
+}
+
+pub fn init_at(path: &std::path::Path) -> Result<Connection> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    let conn = Connection::open(path)?;
     conn.execute_batch("PRAGMA foreign_keys = ON;")?;
     create_schema(&conn)?;
     migrate_timestamps_if_needed(&conn)?;
@@ -341,6 +372,13 @@ pub fn search_notes(conn: &Connection, query: &str) -> Result<Vec<Note>> {
     );
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map(params![fts_query, like_query], row_to_note)?.collect::<rusqlite::Result<_>>()?;
+    Ok(rows)
+}
+
+pub fn get_recent_notes(conn: &Connection, limit: i64) -> Result<Vec<Note>> {
+    let sql = format!("{SELECT} WHERE n.trashed = 0 AND n.in_inbox = 0 GROUP BY n.id ORDER BY n.updated_at DESC LIMIT ?1");
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(params![limit], row_to_note)?.collect::<rusqlite::Result<_>>()?;
     Ok(rows)
 }
 

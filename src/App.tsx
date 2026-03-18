@@ -10,6 +10,7 @@ export default function App() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [tags, setTags] = useState<TagEntry[]>([]);
   const [inboxCount, setInboxCount] = useState(0);
+  const [recentNotes, setRecentNotes] = useState<Note[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
   const [focusNewNote, setFocusNewNote] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -57,12 +58,14 @@ export default function App() {
 
   const loadSidebar = useCallback(async () => {
     try {
-      const [allTags, inbox] = await Promise.all([
+      const [allTags, inbox, recent] = await Promise.all([
         api.getAllTags(),
         api.getInbox(),
+        api.getRecentNotes(),
       ]);
       setTags(allTags);
       setInboxCount(inbox.length);
+      setRecentNotes(recent);
     } catch (e) {
       console.error("Failed to load sidebar:", e);
     }
@@ -156,8 +159,11 @@ export default function App() {
         onViewChange={handleViewChange}
         onTagRename={refresh}
         onTagDelete={refresh}
+        recentNotes={recentNotes}
+        onSelectNote={setSelectedNoteId}
         onThemeToggle={toggleTheme}
         onColorThemeChange={setColorTheme}
+        onDbPathChange={refresh}
       />
 
       <Feed
