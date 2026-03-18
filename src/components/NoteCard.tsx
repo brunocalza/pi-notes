@@ -41,6 +41,7 @@ export default function NoteCard({ note, selected, onClick, onTagClick }: Props)
   return (
     <div
       onClick={onClick}
+      data-note-id={note.id}
       className={`relative px-4 py-4 cursor-pointer border-b bc-subtle transition-colors ${
         selected ? "bg-raised" : "hover:bg-field"
       }`}

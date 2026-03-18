@@ -62,6 +62,7 @@ describe("Feed", () => {
   });
 
   it("calls onEmptyTrash when Empty Trash is clicked", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     const onEmptyTrash = vi.fn();
     const notes = [makeNote({ id: 1, title: "Old Note" })];
     render(<Feed {...defaultProps} view="trash" notes={notes} onEmptyTrash={onEmptyTrash} />);

@@ -176,23 +176,39 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
   const handleAccept = async () => {
     if (!note || !canAccept) return;
     setActionsOpen(false);
-    await api.acceptNote(note.id);
-    onDeselect();
-    onRefresh();
+    try {
+      await api.acceptNote(note.id);
+      onDeselect();
+      onRefresh();
+    } catch (e) { console.error("Failed to accept note:", e); }
   };
 
   const handleTrash = async () => {
     setActionsOpen(false);
-    await api.trashNote(note.id);
-    onDeselect();
-    onRefresh();
+    try {
+      await api.trashNote(note.id);
+      onDeselect();
+      onRefresh();
+    } catch (e) { console.error("Failed to trash note:", e); }
+  };
+
+  const handleDeletePermanently = async () => {
+    setActionsOpen(false);
+    if (!window.confirm("Permanently delete this note? This cannot be undone.")) return;
+    try {
+      await api.deleteNote(note.id);
+      onDeselect();
+      onRefresh();
+    } catch (e) { console.error("Failed to delete note:", e); }
   };
 
   const handleMoveToInbox = async () => {
     setActionsOpen(false);
-    await api.moveToInbox(note.id);
-    onDeselect();
-    onRefresh();
+    try {
+      await api.moveToInbox(note.id);
+      onDeselect();
+      onRefresh();
+    } catch (e) { console.error("Failed to move note to inbox:", e); }
   };
 
   return (
@@ -249,13 +265,23 @@ export default function NoteDetail({ noteId, focusTitle, onNavigate, onTagClick,
                     </button>
                   )}
                   {(note.in_inbox || note.trashed) && <div className="border-t bc-ui my-1" />}
-                  <button
-                    onClick={handleTrash}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-danger hover:bg-lift transition-colors"
-                  >
-                    <Trash2 size={12} />
-                    Move to trash
-                  </button>
+                  {note.trashed ? (
+                    <button
+                      onClick={handleDeletePermanently}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-danger hover:bg-lift transition-colors"
+                    >
+                      <Trash2 size={12} />
+                      Delete permanently
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleTrash}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-danger hover:bg-lift transition-colors"
+                    >
+                      <Trash2 size={12} />
+                      Move to trash
+                    </button>
+                  )}
                 </div>
               )}
             </div>

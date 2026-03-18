@@ -41,6 +41,9 @@ export const api = {
   trashNote: (id: number) =>
     invoke<void>("trash_note", { id }),
 
+  deleteNote: (id: number) =>
+    invoke<void>("delete_note", { id }),
+
   getBacklinks: (id: number) =>
     invoke<Note[]>("get_backlinks", { id }),
 

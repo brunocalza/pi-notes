@@ -12,7 +12,11 @@ vi.mock("../api", () => ({
     getAllTags: vi.fn().mockResolvedValue([]),
     updateNote: vi.fn().mockResolvedValue(undefined),
     trashNote: vi.fn().mockResolvedValue(undefined),
+    deleteNote: vi.fn().mockResolvedValue(undefined),
+    acceptNote: vi.fn().mockResolvedValue(undefined),
+    moveToInbox: vi.fn().mockResolvedValue(undefined),
     getAllNoteTitles: vi.fn().mockResolvedValue([]),
+    getAttachments: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -69,18 +73,84 @@ describe("NoteDetail", () => {
     });
   });
 
-  it("calls trashNote and onDeselect when trash button is clicked", async () => {
+  it("calls trashNote, onDeselect, and onRefresh when trash button is clicked", async () => {
     const onDeselect = vi.fn();
     const onRefresh = vi.fn();
     vi.mocked(api.getNote).mockResolvedValue(makeNote({ id: 1 }));
 
     render(<NoteDetail {...defaultProps} onDeselect={onDeselect} onRefresh={onRefresh} />);
 
-    await waitFor(() => screen.getByTitle("Move to trash"));
-    await userEvent.click(screen.getByTitle("Move to trash"));
+    await waitFor(() => screen.getByTitle("Note actions"));
+    await userEvent.click(screen.getByTitle("Note actions"));
+    await userEvent.click(screen.getByText("Move to trash"));
 
-    expect(api.trashNote).toHaveBeenCalledWith(1);
-    expect(onDeselect).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(api.trashNote).toHaveBeenCalledWith(1);
+      expect(onDeselect).toHaveBeenCalled();
+      expect(onRefresh).toHaveBeenCalled();
+    });
+  });
+
+  it("calls trashNote on a regular (non-inbox) note", async () => {
+    const onDeselect = vi.fn();
+    const onRefresh = vi.fn();
+    vi.mocked(api.getNote).mockResolvedValue(makeNote({ id: 5, in_inbox: false, trashed: false }));
+
+    render(<NoteDetail {...defaultProps} onDeselect={onDeselect} onRefresh={onRefresh} />);
+
+    await waitFor(() => screen.getByTitle("Note actions"));
+    await userEvent.click(screen.getByTitle("Note actions"));
+    await userEvent.click(screen.getByText("Move to trash"));
+
+    await waitFor(() => {
+      expect(api.trashNote).toHaveBeenCalledWith(5);
+      expect(onDeselect).toHaveBeenCalled();
+      expect(onRefresh).toHaveBeenCalled();
+    });
+  });
+
+  it("shows Delete permanently (not Move to trash) for trashed notes", async () => {
+    vi.mocked(api.getNote).mockResolvedValue(makeNote({ id: 7, trashed: true, in_inbox: false }));
+
+    render(<NoteDetail {...defaultProps} />);
+
+    await waitFor(() => screen.getByTitle("Note actions"));
+    await userEvent.click(screen.getByTitle("Note actions"));
+
+    expect(screen.getByText("Delete permanently")).toBeInTheDocument();
+    expect(screen.queryByText("Move to trash")).not.toBeInTheDocument();
+  });
+
+  it("calls deleteNote when Delete permanently is confirmed", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const onDeselect = vi.fn();
+    const onRefresh = vi.fn();
+    vi.mocked(api.getNote).mockResolvedValue(makeNote({ id: 7, trashed: true, in_inbox: false }));
+
+    render(<NoteDetail {...defaultProps} onDeselect={onDeselect} onRefresh={onRefresh} />);
+
+    await waitFor(() => screen.getByTitle("Note actions"));
+    await userEvent.click(screen.getByTitle("Note actions"));
+    await userEvent.click(screen.getByText("Delete permanently"));
+
+    await waitFor(() => {
+      expect(api.deleteNote).toHaveBeenCalledWith(7);
+      expect(onDeselect).toHaveBeenCalled();
+      expect(onRefresh).toHaveBeenCalled();
+    });
+  });
+
+  it("does not call deleteNote when Delete permanently is cancelled", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    vi.mocked(api.getNote).mockResolvedValue(makeNote({ id: 7, trashed: true, in_inbox: false }));
+
+    render(<NoteDetail {...defaultProps} />);
+
+    await waitFor(() => screen.getByTitle("Note actions"));
+    await userEvent.click(screen.getByTitle("Note actions"));
+    await userEvent.click(screen.getByText("Delete permanently"));
+
+    expect(api.deleteNote).not.toHaveBeenCalled();
   });
 
   it("calls updateNote on title blur", async () => {

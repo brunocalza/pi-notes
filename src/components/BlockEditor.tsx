@@ -328,8 +328,7 @@ export default function BlockEditor({ content, onCommit, onNavigate, attachments
                 if (e.key === "Escape") (e.target as HTMLTextAreaElement).blur();
               }}
               className="w-full bg-transparent outline-none resize-none text-sm text-md leading-relaxed"
-              style={{ fontFamily: '"Lora", Georgia, serif' }}
-              style={{ minHeight: "1.4em", overflow: "hidden" }}
+              style={{ fontFamily: '"Lora", Georgia, serif', minHeight: "1.4em", overflow: "hidden" }}
               rows={1}
             />
 

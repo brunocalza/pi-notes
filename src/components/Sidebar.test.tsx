@@ -8,6 +8,7 @@ vi.mock("../api", () => ({
   api: {
     renameTag: vi.fn(),
     deleteTag: vi.fn(),
+    getDbPathSetting: vi.fn().mockResolvedValue("/home/user/.local/share/pi-notes/notes.db"),
   },
 }));
 
