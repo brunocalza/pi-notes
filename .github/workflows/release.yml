@@ -21,10 +21,13 @@ jobs:
         include:
           - platform: ubuntu-22.04
             rust_target: x86_64-unknown-linux-gnu
+            bundles: deb,rpm,appimage
           - platform: macos-latest
             rust_target: aarch64-apple-darwin
+            bundles: dmg,app
           - platform: windows-latest
             rust_target: x86_64-pc-windows-msvc
+            bundles: nsis
 
     runs-on: ${{ matrix.platform }}
 
@@ -71,4 +74,4 @@ jobs:
           releaseBody: "See the assets to download this version and install."
           releaseDraft: false
           prerelease: false
-          args: --target ${{ matrix.rust_target }}
+          args: --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundles }}
