@@ -12,9 +12,7 @@ jobs:
       matrix:
         include:
           - platform: ubuntu-latest
-            bundles: deb,rpm,appimage
           - platform: macos-latest
-            bundles: dmg
 
     runs-on: ${{ matrix.platform }}
 
@@ -48,31 +46,17 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libssl-dev
-          sudo modprobe fuse
 
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Build app
-        run: npm run build -- --bundles ${{ matrix.bundles }}
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - name: Build and upload release assets
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: release-${{ matrix.platform }}
-          if-no-files-found: ignore
-          path: |
-            src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/rpm/*.rpm
-            src-tauri/target/release/bundle/appimage/*.AppImage
-            src-tauri/target/release/bundle/dmg/*.dmg
-
-      - name: Upload to GitHub Release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/rpm/*.rpm
-            src-tauri/target/release/bundle/appimage/*.AppImage
-            src-tauri/target/release/bundle/dmg/*.dmg
+          tagName: ${{ github.event_name == 'release' && github.ref_name || '' }}
+          releaseName: "PI Notes ${{ github.ref_name }}"
+          releaseBody: "See the assets to download this version and install."
+          releaseDraft: false
+          prerelease: false
