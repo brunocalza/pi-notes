@@ -1,16 +1,14 @@
 import { useState, useEffect } from "react";
 import { api } from "../api";
 import { Inbox, FileText, Trash2, Tag, Pencil, X, Search, Sun, Moon, Settings } from "lucide-react";
-import { Note, TagEntry, View, ColorTheme } from "../types";
+import { TagEntry, View, ColorTheme } from "../types";
 
 interface Props {
   view: View;
   tags: TagEntry[];
   inboxCount: number;
-  recentNotes: Note[];
   theme: "dark" | "light";
   colorTheme: ColorTheme;
-  onSelectNote: (id: number) => void;
   onViewChange: (v: View) => void;
   onTagRename: () => void;
   onTagDelete: () => void;
@@ -61,13 +59,11 @@ export default function Sidebar({
   view,
   tags,
   inboxCount,
-  recentNotes,
   theme,
   colorTheme,
   onViewChange,
   onTagRename,
   onTagDelete,
-  onSelectNote,
   onThemeToggle,
   onColorThemeChange,
   onDbPathChange,
@@ -176,29 +172,6 @@ export default function Sidebar({
           <span>Trash</span>
         </div>
       </nav>
-
-      {/* Recent notes */}
-      {recentNotes.length > 0 && (
-        <div className="px-2 mt-4 shrink-0">
-          <p className="text-xs font-semibold text-ghost uppercase tracking-wider px-2 mb-1">
-            Recent
-          </p>
-          <div className="flex flex-col gap-0.5">
-            {recentNotes.map((note) => (
-              <button
-                key={note.id}
-                onClick={() => onSelectNote(note.id)}
-                className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs text-left text-dim hover:text-lo hover:bg-field transition-colors truncate"
-                title={note.title || "Untitled"}
-              >
-                <span className="truncate">
-                  {note.title || <span className="italic text-ghost">Untitled</span>}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Tags — scrollable */}
       <div className="flex-1 min-h-0 overflow-y-auto mt-6 px-4">

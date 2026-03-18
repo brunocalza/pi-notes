@@ -110,6 +110,63 @@ fn get_notes_by_tag(state: State<DbState>, tag: String) -> Result<Vec<Note>, Str
 }
 
 #[tauri::command]
+fn list_notes_cursor(
+    state: State<DbState>,
+    limit: i64,
+    cursor_ts: Option<i64>,
+    cursor_id: Option<i64>,
+) -> Result<Vec<Note>, String> {
+    let conn = state.0.lock().map_err(map_err)?;
+    db::list_notes_cursor(&conn, limit, cursor_ts, cursor_id).map_err(map_err)
+}
+
+#[tauri::command]
+fn get_inbox_cursor(
+    state: State<DbState>,
+    limit: i64,
+    cursor_ts: Option<i64>,
+    cursor_id: Option<i64>,
+) -> Result<Vec<Note>, String> {
+    let conn = state.0.lock().map_err(map_err)?;
+    db::get_inbox_cursor(&conn, limit, cursor_ts, cursor_id).map_err(map_err)
+}
+
+#[tauri::command]
+fn get_trash_cursor(
+    state: State<DbState>,
+    limit: i64,
+    cursor_ts: Option<i64>,
+    cursor_id: Option<i64>,
+) -> Result<Vec<Note>, String> {
+    let conn = state.0.lock().map_err(map_err)?;
+    db::get_trash_cursor(&conn, limit, cursor_ts, cursor_id).map_err(map_err)
+}
+
+#[tauri::command]
+fn get_notes_by_tag_cursor(
+    state: State<DbState>,
+    tag: String,
+    limit: i64,
+    cursor_ts: Option<i64>,
+    cursor_id: Option<i64>,
+) -> Result<Vec<Note>, String> {
+    let conn = state.0.lock().map_err(map_err)?;
+    db::get_notes_by_tag_cursor(&conn, &tag, limit, cursor_ts, cursor_id).map_err(map_err)
+}
+
+#[tauri::command]
+fn search_notes_cursor(
+    state: State<DbState>,
+    query: String,
+    limit: i64,
+    cursor_ts: Option<i64>,
+    cursor_id: Option<i64>,
+) -> Result<Vec<Note>, String> {
+    let conn = state.0.lock().map_err(map_err)?;
+    db::search_notes_cursor(&conn, &query, limit, cursor_ts, cursor_id).map_err(map_err)
+}
+
+#[tauri::command]
 fn get_all_tags(state: State<DbState>) -> Result<Vec<(String, i64)>, String> {
     let conn = state.0.lock().map_err(map_err)?;
     db::get_all_tags(&conn).map_err(map_err)
@@ -257,6 +314,11 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             list_notes,
+            list_notes_cursor,
+            get_inbox_cursor,
+            get_trash_cursor,
+            get_notes_by_tag_cursor,
+            search_notes_cursor,
             get_note,
             insert_note,
             update_note,

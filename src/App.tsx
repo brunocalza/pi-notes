@@ -7,14 +7,13 @@ import NoteDetail from "./components/NoteDetail";
 
 export default function App() {
   const [view, setView] = useState<View>("all");
-  const [notes, setNotes] = useState<Note[]>([]);
   const [tags, setTags] = useState<TagEntry[]>([]);
   const [inboxCount, setInboxCount] = useState(0);
-  const [recentNotes, setRecentNotes] = useState<Note[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
   const [focusNewNote, setFocusNewNote] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocusTrigger, setSearchFocusTrigger] = useState(0);
+  const [feedRefreshKey, setFeedRefreshKey] = useState(0);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     return (localStorage.getItem("theme") as "dark" | "light") || "dark";
   });
@@ -34,73 +33,43 @@ export default function App() {
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
 
-  const loadNotes = useCallback(async () => {
-    try {
-      let fetched: Note[];
-      if (searchQuery.trim()) {
-        fetched = await api.searchNotes(searchQuery);
-      } else if (view === "all") {
-        fetched = await api.listNotes();
-      } else if (view === "inbox") {
-        fetched = await api.getInbox();
-      } else if (view === "trash") {
-        fetched = await api.getTrash();
-      } else if (typeof view === "object" && "tag" in view) {
-        fetched = await api.getNotesByTag(view.tag);
-      } else {
-        fetched = [];
-      }
-      setNotes(fetched);
-    } catch (e) {
-      console.error("Failed to load notes:", e);
-    }
-  }, [view, searchQuery]);
-
   const loadSidebar = useCallback(async () => {
     try {
-      const [allTags, inbox, recent] = await Promise.all([
-        api.getAllTags(),
-        api.getInbox(),
-        api.getRecentNotes(),
-      ]);
+      const [allTags, inbox] = await Promise.all([api.getAllTags(), api.getInbox()]);
       setTags(allTags);
       setInboxCount(inbox.length);
-      setRecentNotes(recent);
     } catch (e) {
       console.error("Failed to load sidebar:", e);
     }
   }, []);
 
   useEffect(() => {
-    loadNotes();
-  }, [loadNotes]);
-  useEffect(() => {
     loadSidebar();
   }, [loadSidebar]);
 
   const refresh = useCallback(() => {
-    loadNotes();
+    setFeedRefreshKey((k) => k + 1);
     loadSidebar();
-  }, [loadNotes, loadSidebar]);
+  }, [loadSidebar]);
 
   const handleAddNote = useCallback(async () => {
     try {
       const id = await api.insertNote("New note", "", []);
       setView("inbox");
       setSearchQuery("");
-      await loadNotes();
-      await loadSidebar();
+      setFeedRefreshKey((k) => k + 1);
+      loadSidebar();
       setFocusNewNote(true);
       setSelectedNoteId(id);
     } catch (e) {
       console.error("Failed to create note:", e);
     }
-  }, [loadNotes, loadSidebar]);
+  }, [loadSidebar]);
 
-  // Stale-closure-safe refs for global shortcuts
-  const stateRef = useRef({ selectedNoteId, notes, view });
+  // Stale-closure-safe refs for global shortcuts — notes updated via onNotesChange
+  const stateRef = useRef({ selectedNoteId, notes: [] as Note[], view });
   useEffect(() => {
-    stateRef.current = { selectedNoteId, notes, view };
+    stateRef.current = { ...stateRef.current, selectedNoteId, view };
   });
 
   useEffect(() => {
@@ -203,19 +172,17 @@ export default function App() {
         onViewChange={handleViewChange}
         onTagRename={refresh}
         onTagDelete={refresh}
-        recentNotes={recentNotes}
-        onSelectNote={setSelectedNoteId}
         onThemeToggle={toggleTheme}
         onColorThemeChange={setColorTheme}
         onDbPathChange={refresh}
       />
 
       <Feed
-        notes={notes}
         view={view}
         searchQuery={searchQuery}
         selectedNoteId={selectedNoteId}
         searchFocusTrigger={searchFocusTrigger}
+        refreshKey={feedRefreshKey}
         onSearchChange={setSearchQuery}
         onSelectNote={setSelectedNoteId}
         onTagClick={(tag) => handleViewChange({ tag })}
@@ -224,6 +191,9 @@ export default function App() {
           await api.emptyTrash();
           setSelectedNoteId(null);
           refresh();
+        }}
+        onNotesChange={(notes) => {
+          stateRef.current.notes = notes;
         }}
       />
 
