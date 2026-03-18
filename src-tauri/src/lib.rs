@@ -6,7 +6,7 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use models::{AttachmentMeta, Note};
 use rusqlite::Connection;
 use std::sync::Mutex;
-use tauri::State;
+use tauri::{Manager, State};
 
 pub struct DbState(pub Mutex<Connection>);
 
@@ -248,6 +248,13 @@ pub fn run() {
         .manage(DbState(Mutex::new(
             db::init().expect("failed to initialize database"),
         )))
+        .setup(|app| {
+            let window = app.get_webview_window("main").unwrap();
+            let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/logo.png")).unwrap();
+            window.set_icon(icon).unwrap();
+            Ok(())
+        })
+
         .invoke_handler(tauri::generate_handler![
             list_notes,
             get_note,
