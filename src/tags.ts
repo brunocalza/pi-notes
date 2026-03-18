@@ -17,13 +17,11 @@ export interface TagValidation {
  * Normalizes raw user input into tag form:
  * - trims leading/trailing whitespace
  * - lowercases
- * - collapses multiple consecutive spaces into one
- * - collapses multiple consecutive hyphens into one
  * - strips leading `#`
  * - preserves `/` hierarchy
  */
 export function normalizeTag(raw: string): string {
-  return raw.trim().replace(/^#/, "").toLowerCase().replace(/ +/g, " ").replace(/-+/g, "-");
+  return raw.trim().replace(/^#/, "").toLowerCase();
 }
 
 /**
@@ -60,10 +58,6 @@ export function validateTag(raw: string): TagValidation {
 
   if (normalized.length > 50) {
     errors.push("tag exceeds 50 characters");
-  }
-
-  if (/[A-Z]/.test(raw)) {
-    errors.push("uppercase letters are not allowed");
   }
 
   if (normalized.startsWith("/") || normalized.endsWith("/")) {

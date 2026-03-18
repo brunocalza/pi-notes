@@ -66,12 +66,12 @@ describe("normalizeTag", () => {
     expect(normalizeTag("Rust Async Runtime")).toBe("rust async runtime");
   });
 
-  it("trims and collapses multiple spaces to one", () => {
-    expect(normalizeTag("  hello  world  ")).toBe("hello world");
+  it("trims but preserves internal spaces", () => {
+    expect(normalizeTag("  hello  world  ")).toBe("hello  world");
   });
 
-  it("collapses consecutive hyphens", () => {
-    expect(normalizeTag("rust--async")).toBe("rust-async");
+  it("preserves consecutive hyphens", () => {
+    expect(normalizeTag("rust--async")).toBe("rust--async");
   });
 
   it("strips leading #", () => {
@@ -119,17 +119,17 @@ describe("validateTag", () => {
     expect(r.valid).toBe(true);
   });
 
-  it("normalizes multiple spaces before validating", () => {
+  it("trims but does not collapse internal spaces", () => {
     const r = validateTag("  rust  async  ");
-    expect(r.normalized).toBe("rust async");
-    expect(r.valid).toBe(true);
+    expect(r.normalized).toBe("rust  async");
+    expect(r.valid).toBe(false);
+    expect(r.errors).toContain("consecutive spaces are not allowed");
   });
 
-  it("reports uppercase error even though normalized form is valid", () => {
+  it("silently lowercases uppercase input", () => {
     const r = validateTag("Rust Async");
     expect(r.normalized).toBe("rust async");
-    expect(r.valid).toBe(false);
-    expect(r.errors).toContain("uppercase letters are not allowed");
+    expect(r.valid).toBe(true);
   });
 
   it("reports tag is empty", () => {
@@ -150,15 +150,17 @@ describe("validateTag", () => {
     expect(r.errors).toContain("tag exceeds 50 characters");
   });
 
-  it("reports uppercase letters are not allowed", () => {
+  it("silently lowercases single uppercase word", () => {
     const r = validateTag("Rust");
-    expect(r.errors).toContain("uppercase letters are not allowed");
+    expect(r.normalized).toBe("rust");
+    expect(r.valid).toBe(true);
   });
 
-  it("normalizes consecutive hyphens to single hyphen (valid)", () => {
+  it("consecutive hyphens are invalid", () => {
     const r = validateTag("rust--async");
-    expect(r.normalized).toBe("rust-async");
-    expect(r.valid).toBe(true);
+    expect(r.normalized).toBe("rust--async");
+    expect(r.valid).toBe(false);
+    expect(r.errors).toContain("consecutive hyphens are not allowed");
   });
 
   it("reports only lowercase letters allowed for disallowed chars", () => {
