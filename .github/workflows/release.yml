@@ -5,6 +5,11 @@ on:
   release:
     types: [created]
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+
 permissions:
   contents: write
 
@@ -15,7 +20,11 @@ jobs:
       matrix:
         include:
           - platform: ubuntu-22.04
+            rust_target: x86_64-unknown-linux-gnu
           - platform: macos-latest
+            rust_target: aarch64-apple-darwin
+          - platform: windows-latest
+            rust_target: x86_64-pc-windows-msvc
 
     runs-on: ${{ matrix.platform }}
 
@@ -30,6 +39,8 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
@@ -37,7 +48,7 @@ jobs:
           workspaces: src-tauri
 
       - name: Install Linux system dependencies
-        if: matrix.platform == 'ubuntu-22.04'
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -60,3 +71,4 @@ jobs:
           releaseBody: "See the assets to download this version and install."
           releaseDraft: false
           prerelease: false
+          args: --target ${{ matrix.rust_target }}
