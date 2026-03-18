@@ -524,7 +524,7 @@ export default function NoteDetail({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,.pdf"
+              accept="image/*,application/pdf"
               className="hidden"
               onChange={handleAttachFile}
             />
