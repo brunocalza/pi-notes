@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: ubuntu-24.04
+          - platform: ubuntu-22.04
             rust_target: x86_64-unknown-linux-gnu
             bundles: deb,rpm,appimage
             rustflags: "-C linker=zigcc"
@@ -89,6 +89,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUSTFLAGS: ${{ matrix.rustflags }}
           MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_deployment_target }}
+          # Exclude system libs that are always present on the user's system.
+          # libudev.so.1 from ubuntu-24.04 requires glibc 2.38 and must not be bundled.
+          LINUXDEPLOY_EXCLUDE_LIBS: "libudev.so.1"
         with:
           tagName: ${{ github.event_name == 'release' && github.ref_name || '' }}
           releaseName: "PI Notes ${{ github.ref_name }}"
