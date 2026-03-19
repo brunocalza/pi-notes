@@ -99,6 +99,7 @@ export default function Sidebar({
   const [daysWithNotes, setDaysWithNotes] = useState<number[]>([]);
 
   useEffect(() => {
+    setDaysWithNotes([]);
     const mm = String(calMonth + 1).padStart(2, "0");
     api
       .getDaysWithNotesInMonth(`${calYear}-${mm}`)
