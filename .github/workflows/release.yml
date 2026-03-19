@@ -1,6 +1,9 @@
 name: Release
 
 on:
+  push:
+    branches:
+      - feat/macos-deployment-target
   workflow_dispatch:
   release:
     types: [created]
@@ -33,6 +36,7 @@ jobs:
             bundles: nsis
             rustflags: ""
 
+    if: github.event_name != 'push' || matrix.platform == 'ubuntu-24.04'
     runs-on: ${{ matrix.platform }}
 
     steps:
