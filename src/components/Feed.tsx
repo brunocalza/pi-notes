@@ -1,19 +1,23 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import { Plus, Search, Trash2 } from "lucide-react";
 import { Note, View } from "../types";
+import { api, Cursor } from "../api";
 import NoteCard from "./NoteCard";
 
+const PAGE_SIZE = 50;
+
 interface Props {
-  notes: Note[];
   view: View;
   searchQuery: string;
   selectedNoteId: number | null;
   searchFocusTrigger: number;
+  refreshKey: number;
   onSearchChange: (q: string) => void;
   onSelectNote: (id: number) => void;
   onTagClick: (tag: string) => void;
   onAddNote: () => void;
   onEmptyTrash: () => void;
+  onNotesChange: (notes: Note[]) => void;
 }
 
 function viewTitle(view: View): string {
@@ -24,24 +28,120 @@ function viewTitle(view: View): string {
   return "Notes";
 }
 
+function toCursor(note: Note): Cursor {
+  return { ts: new Date(note.updated_at).getTime(), id: note.id };
+}
+
+async function fetchPage(view: View, searchQuery: string, cursor: Cursor | null): Promise<Note[]> {
+  if (searchQuery.trim()) {
+    return api.searchNotesCursor(searchQuery, PAGE_SIZE, cursor);
+  }
+  if (view === "all") return api.listNotesCursor(PAGE_SIZE, cursor);
+  if (view === "inbox") return api.getInboxCursor(PAGE_SIZE, cursor);
+  if (view === "trash") return api.getTrashCursor(PAGE_SIZE, cursor);
+  if (typeof view === "object" && "tag" in view) {
+    return api.getNotesByTagCursor(view.tag, PAGE_SIZE, cursor);
+  }
+  return [];
+}
+
 export default function Feed({
-  notes,
   view,
   searchQuery,
   selectedNoteId,
   searchFocusTrigger,
+  refreshKey,
   onSearchChange,
   onSelectNote,
   onTagClick,
   onAddNote,
   onEmptyTrash,
+  onNotesChange,
 }: Props) {
   const searchRef = useRef<HTMLInputElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const showSearch = view === "all" || (typeof view === "object" && "tag" in view);
+
+  // State for rendering
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Refs for use in callbacks / observer (avoid stale closures)
+  const notesRef = useRef<Note[]>([]);
+  const hasMoreRef = useRef(true);
+  const loadingRef = useRef(false);
+  const cancelRef = useRef(0);
+  const viewRef = useRef(view);
+  const searchQueryRef = useRef(searchQuery);
 
   useEffect(() => {
     if (searchFocusTrigger > 0) searchRef.current?.focus();
   }, [searchFocusTrigger]);
+
+  const loadMore = useCallback(
+    async (reset: boolean) => {
+      if (loadingRef.current) return;
+      if (!reset && !hasMoreRef.current) return;
+
+      loadingRef.current = true;
+      setLoading(true);
+      cancelRef.current += 1;
+      const token = cancelRef.current;
+
+      try {
+        const cursor =
+          reset || notesRef.current.length === 0
+            ? null
+            : toCursor(notesRef.current[notesRef.current.length - 1]);
+
+        const fetched = await fetchPage(viewRef.current, searchQueryRef.current, cursor);
+
+        if (cancelRef.current !== token) return;
+
+        const newNotes = reset ? fetched : [...notesRef.current, ...fetched];
+        notesRef.current = newNotes;
+        hasMoreRef.current = fetched.length === PAGE_SIZE;
+        setNotes(newNotes);
+        onNotesChange(newNotes);
+      } catch (e) {
+        if (cancelRef.current !== token) return;
+        console.error("Failed to load notes:", e);
+      } finally {
+        if (cancelRef.current === token) {
+          loadingRef.current = false;
+          setLoading(false);
+        }
+      }
+    },
+    [onNotesChange]
+  );
+
+  // Reset and reload when view / searchQuery / refreshKey change
+  useEffect(() => {
+    viewRef.current = view;
+    searchQueryRef.current = searchQuery;
+    hasMoreRef.current = true;
+    notesRef.current = [];
+    cancelRef.current += 1;
+    loadingRef.current = false;
+    setNotes([]);
+    loadMore(true);
+    // loadMore is stable (no deps that change here); view/searchQuery/refreshKey are the triggers
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, searchQuery, refreshKey]);
+
+  // IntersectionObserver on the sentinel div to load next page
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !loadingRef.current && hasMoreRef.current) {
+        loadMore(false);
+      }
+    });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   return (
     <div className="flex flex-col h-full border-r bc-ui shrink-0" style={{ width: 360 }}>
@@ -94,20 +194,29 @@ export default function Feed({
 
       {/* Note list */}
       <div className="flex-1 overflow-y-auto py-1">
-        {notes.length === 0 ? (
+        {notes.length === 0 && !loading ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-ghost text-xs">{searchQuery ? "No results" : "No notes here"}</p>
           </div>
         ) : (
-          notes.map((note) => (
-            <NoteCard
-              key={note.id}
-              note={note}
-              selected={note.id === selectedNoteId}
-              onClick={() => onSelectNote(note.id)}
-              onTagClick={onTagClick}
-            />
-          ))
+          <>
+            {notes.map((note) => (
+              <NoteCard
+                key={note.id}
+                note={note}
+                selected={note.id === selectedNoteId}
+                onClick={() => onSelectNote(note.id)}
+                onTagClick={onTagClick}
+              />
+            ))}
+            {/* Sentinel triggers next page load when scrolled into view */}
+            <div ref={sentinelRef} className="h-px" />
+            {loading && (
+              <div className="flex justify-center py-3">
+                <div className="w-4 h-4 border-2 border-ghost border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

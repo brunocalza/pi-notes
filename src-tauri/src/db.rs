@@ -232,6 +232,15 @@ fn create_schema(conn: &Connection) -> Result<()> {
             tag     TEXT    NOT NULL,
             PRIMARY KEY (note_id, tag)
         );
+
+        CREATE INDEX IF NOT EXISTS idx_notes_list
+            ON notes(in_inbox, trashed, updated_at DESC, id DESC);
+
+        CREATE INDEX IF NOT EXISTS idx_notes_trash
+            ON notes(trashed, updated_at DESC, id DESC);
+
+        CREATE INDEX IF NOT EXISTS idx_note_tags_tag
+            ON note_tags(tag, note_id);
         "#,
     )?;
     Ok(())
@@ -295,13 +304,38 @@ pub fn get_note(conn: &Connection, id: i64) -> Result<Option<Note>> {
 }
 
 pub fn get_inbox(conn: &Connection) -> Result<Vec<Note>> {
-    let sql = format!(
-        "{SELECT} WHERE n.in_inbox = 1 AND n.trashed = 0 GROUP BY n.id ORDER BY n.created_at DESC"
-    );
-    let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt
-        .query_map([], row_to_note)?
-        .collect::<rusqlite::Result<_>>()?;
+    get_inbox_cursor(conn, 500, None, None)
+}
+
+pub fn get_inbox_cursor(
+    conn: &Connection,
+    limit: i64,
+    cursor_ts: Option<i64>,
+    cursor_id: Option<i64>,
+) -> Result<Vec<Note>> {
+    let rows = match (cursor_ts, cursor_id) {
+        (Some(ts), Some(cid)) => {
+            let sql = format!(
+                "{SELECT}
+                 WHERE n.in_inbox = 1 AND n.trashed = 0
+                   AND (n.updated_at < ?2 OR (n.updated_at = ?2 AND n.id < ?3))
+                 GROUP BY n.id ORDER BY n.updated_at DESC, n.id DESC LIMIT ?1"
+            );
+            conn.prepare(&sql)?
+                .query_map(params![limit, ts, cid], row_to_note)?
+                .collect::<rusqlite::Result<_>>()?
+        }
+        _ => {
+            let sql = format!(
+                "{SELECT}
+                 WHERE n.in_inbox = 1 AND n.trashed = 0
+                 GROUP BY n.id ORDER BY n.updated_at DESC, n.id DESC LIMIT ?1"
+            );
+            conn.prepare(&sql)?
+                .query_map(params![limit], row_to_note)?
+                .collect::<rusqlite::Result<_>>()?
+        }
+    };
     Ok(rows)
 }
 
@@ -339,11 +373,38 @@ pub fn empty_trash(conn: &Connection) -> Result<()> {
 }
 
 pub fn get_trash(conn: &Connection) -> Result<Vec<Note>> {
-    let sql = format!("{SELECT} WHERE n.trashed = 1 GROUP BY n.id ORDER BY n.created_at DESC");
-    let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt
-        .query_map([], row_to_note)?
-        .collect::<rusqlite::Result<_>>()?;
+    get_trash_cursor(conn, 500, None, None)
+}
+
+pub fn get_trash_cursor(
+    conn: &Connection,
+    limit: i64,
+    cursor_ts: Option<i64>,
+    cursor_id: Option<i64>,
+) -> Result<Vec<Note>> {
+    let rows = match (cursor_ts, cursor_id) {
+        (Some(ts), Some(cid)) => {
+            let sql = format!(
+                "{SELECT}
+                 WHERE n.trashed = 1
+                   AND (n.updated_at < ?2 OR (n.updated_at = ?2 AND n.id < ?3))
+                 GROUP BY n.id ORDER BY n.updated_at DESC, n.id DESC LIMIT ?1"
+            );
+            conn.prepare(&sql)?
+                .query_map(params![limit, ts, cid], row_to_note)?
+                .collect::<rusqlite::Result<_>>()?
+        }
+        _ => {
+            let sql = format!(
+                "{SELECT}
+                 WHERE n.trashed = 1
+                 GROUP BY n.id ORDER BY n.updated_at DESC, n.id DESC LIMIT ?1"
+            );
+            conn.prepare(&sql)?
+                .query_map(params![limit], row_to_note)?
+                .collect::<rusqlite::Result<_>>()?
+        }
+    };
     Ok(rows)
 }
 
@@ -378,20 +439,49 @@ pub fn get_note_by_title(conn: &Connection, title: &str) -> Result<Option<Note>>
 }
 
 pub fn search_notes(conn: &Connection, query: &str) -> Result<Vec<Note>> {
+    search_notes_cursor(conn, query, 500, None, None)
+}
+
+pub fn search_notes_cursor(
+    conn: &Connection,
+    query: &str,
+    limit: i64,
+    cursor_ts: Option<i64>,
+    cursor_id: Option<i64>,
+) -> Result<Vec<Note>> {
     let fts_query = prepare_fts_query(query);
     let like_query = format!("%{}%", query.trim());
-    let sql = format!(
-        "{SELECT}
-         WHERE n.in_inbox = 0 AND n.trashed = 0
-           AND (n.id IN (SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?1)
-                OR lower(n.title) LIKE lower(?2))
-         GROUP BY n.id
-         ORDER BY n.created_at DESC"
-    );
-    let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt
-        .query_map(params![fts_query, like_query], row_to_note)?
-        .collect::<rusqlite::Result<_>>()?;
+    let rows = match (cursor_ts, cursor_id) {
+        (Some(ts), Some(cid)) => {
+            let sql = format!(
+                "{SELECT}
+                 WHERE n.in_inbox = 0 AND n.trashed = 0
+                   AND (n.id IN (SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?1)
+                        OR lower(n.title) LIKE lower(?2))
+                   AND (n.updated_at < ?4 OR (n.updated_at = ?4 AND n.id < ?5))
+                 GROUP BY n.id
+                 ORDER BY n.updated_at DESC, n.id DESC
+                 LIMIT ?3"
+            );
+            conn.prepare(&sql)?
+                .query_map(params![fts_query, like_query, limit, ts, cid], row_to_note)?
+                .collect::<rusqlite::Result<_>>()?
+        }
+        _ => {
+            let sql = format!(
+                "{SELECT}
+                 WHERE n.in_inbox = 0 AND n.trashed = 0
+                   AND (n.id IN (SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?1)
+                        OR lower(n.title) LIKE lower(?2))
+                 GROUP BY n.id
+                 ORDER BY n.updated_at DESC, n.id DESC
+                 LIMIT ?3"
+            );
+            conn.prepare(&sql)?
+                .query_map(params![fts_query, like_query, limit], row_to_note)?
+                .collect::<rusqlite::Result<_>>()?
+        }
+    };
     Ok(rows)
 }
 
@@ -405,13 +495,38 @@ pub fn get_recent_notes(conn: &Connection, limit: i64) -> Result<Vec<Note>> {
 }
 
 pub fn list_notes(conn: &Connection) -> Result<Vec<Note>> {
-    let sql = format!(
-        "{SELECT} WHERE n.in_inbox = 0 AND n.trashed = 0 GROUP BY n.id ORDER BY n.created_at DESC"
-    );
-    let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt
-        .query_map([], row_to_note)?
-        .collect::<rusqlite::Result<_>>()?;
+    list_notes_cursor(conn, 500, None, None)
+}
+
+pub fn list_notes_cursor(
+    conn: &Connection,
+    limit: i64,
+    cursor_ts: Option<i64>,
+    cursor_id: Option<i64>,
+) -> Result<Vec<Note>> {
+    let rows = match (cursor_ts, cursor_id) {
+        (Some(ts), Some(cid)) => {
+            let sql = format!(
+                "{SELECT}
+                 WHERE n.in_inbox = 0 AND n.trashed = 0
+                   AND (n.updated_at < ?2 OR (n.updated_at = ?2 AND n.id < ?3))
+                 GROUP BY n.id ORDER BY n.updated_at DESC, n.id DESC LIMIT ?1"
+            );
+            conn.prepare(&sql)?
+                .query_map(params![limit, ts, cid], row_to_note)?
+                .collect::<rusqlite::Result<_>>()?
+        }
+        _ => {
+            let sql = format!(
+                "{SELECT}
+                 WHERE n.in_inbox = 0 AND n.trashed = 0
+                 GROUP BY n.id ORDER BY n.updated_at DESC, n.id DESC LIMIT ?1"
+            );
+            conn.prepare(&sql)?
+                .query_map(params![limit], row_to_note)?
+                .collect::<rusqlite::Result<_>>()?
+        }
+    };
     Ok(rows)
 }
 
@@ -461,18 +576,42 @@ pub fn get_all_note_titles(conn: &Connection) -> Result<Vec<String>> {
 }
 
 pub fn get_notes_by_tag(conn: &Connection, tag: &str) -> Result<Vec<Note>> {
+    get_notes_by_tag_cursor(conn, tag, 500, None, None)
+}
+
+pub fn get_notes_by_tag_cursor(
+    conn: &Connection,
+    tag: &str,
+    limit: i64,
+    cursor_ts: Option<i64>,
+    cursor_id: Option<i64>,
+) -> Result<Vec<Note>> {
     let tag = tag.trim_start_matches('#');
-    let sql = format!(
-        "{SELECT}
-         WHERE n.in_inbox = 0 AND n.trashed = 0
-           AND n.id IN (SELECT note_id FROM note_tags WHERE tag = ?1)
-         GROUP BY n.id
-         ORDER BY n.created_at DESC"
-    );
-    let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt
-        .query_map(params![tag], row_to_note)?
-        .collect::<rusqlite::Result<_>>()?;
+    let rows = match (cursor_ts, cursor_id) {
+        (Some(ts), Some(cid)) => {
+            let sql = format!(
+                "{SELECT}
+                 WHERE n.in_inbox = 0 AND n.trashed = 0
+                   AND n.id IN (SELECT note_id FROM note_tags WHERE tag = ?1)
+                   AND (n.updated_at < ?3 OR (n.updated_at = ?3 AND n.id < ?4))
+                 GROUP BY n.id ORDER BY n.updated_at DESC, n.id DESC LIMIT ?2"
+            );
+            conn.prepare(&sql)?
+                .query_map(params![tag, limit, ts, cid], row_to_note)?
+                .collect::<rusqlite::Result<_>>()?
+        }
+        _ => {
+            let sql = format!(
+                "{SELECT}
+                 WHERE n.in_inbox = 0 AND n.trashed = 0
+                   AND n.id IN (SELECT note_id FROM note_tags WHERE tag = ?1)
+                 GROUP BY n.id ORDER BY n.updated_at DESC, n.id DESC LIMIT ?2"
+            );
+            conn.prepare(&sql)?
+                .query_map(params![tag, limit], row_to_note)?
+                .collect::<rusqlite::Result<_>>()?
+        }
+    };
     Ok(rows)
 }
 

@@ -1,8 +1,50 @@
 import { invoke } from "@tauri-apps/api/core";
 import { AttachmentMeta, Note, TagEntry } from "./types";
 
+export interface Cursor {
+  ts: number;
+  id: number;
+}
+
 export const api = {
   listNotes: () => invoke<Note[]>("list_notes"),
+
+  listNotesCursor: (limit: number, cursor: Cursor | null) =>
+    invoke<Note[]>("list_notes_cursor", {
+      limit,
+      cursorTs: cursor?.ts ?? null,
+      cursorId: cursor?.id ?? null,
+    }),
+
+  getInboxCursor: (limit: number, cursor: Cursor | null) =>
+    invoke<Note[]>("get_inbox_cursor", {
+      limit,
+      cursorTs: cursor?.ts ?? null,
+      cursorId: cursor?.id ?? null,
+    }),
+
+  getTrashCursor: (limit: number, cursor: Cursor | null) =>
+    invoke<Note[]>("get_trash_cursor", {
+      limit,
+      cursorTs: cursor?.ts ?? null,
+      cursorId: cursor?.id ?? null,
+    }),
+
+  getNotesByTagCursor: (tag: string, limit: number, cursor: Cursor | null) =>
+    invoke<Note[]>("get_notes_by_tag_cursor", {
+      tag,
+      limit,
+      cursorTs: cursor?.ts ?? null,
+      cursorId: cursor?.id ?? null,
+    }),
+
+  searchNotesCursor: (query: string, limit: number, cursor: Cursor | null) =>
+    invoke<Note[]>("search_notes_cursor", {
+      query,
+      limit,
+      cursorTs: cursor?.ts ?? null,
+      cursorId: cursor?.id ?? null,
+    }),
 
   getRecentNotes: () => invoke<Note[]>("get_recent_notes"),
 
