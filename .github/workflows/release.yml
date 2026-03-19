@@ -27,6 +27,7 @@ jobs:
             rust_target: aarch64-apple-darwin
             bundles: dmg,app
             rustflags: ""
+            macos_deployment_target: "12.0"
           - platform: windows-latest
             rust_target: x86_64-pc-windows-msvc
             bundles: nsis
@@ -87,6 +88,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUSTFLAGS: ${{ matrix.rustflags }}
+          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_deployment_target }}
         with:
           tagName: ${{ github.event_name == 'release' && github.ref_name || '' }}
           releaseName: "PI Notes ${{ github.ref_name }}"
