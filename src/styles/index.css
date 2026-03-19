@@ -424,6 +424,7 @@
   font-family: "Lora", Georgia, serif;
   line-height: 1.7;
   color: var(--c-text-md);
+  overflow-wrap: break-word;
 }
 
 .markdown-content h1,
