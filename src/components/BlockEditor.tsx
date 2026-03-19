@@ -335,7 +335,14 @@ export default function BlockEditor({
           );
         }
         return (
-          <a href={href} target="_blank" rel="noopener noreferrer">
+          <a
+            href={href}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (href) api.openUrl(href).catch(console.error);
+            }}
+          >
             {children}
           </a>
         );

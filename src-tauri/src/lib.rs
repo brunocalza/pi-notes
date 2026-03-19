@@ -301,6 +301,26 @@ fn open_attachment(state: State<DbState>, id: i64) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    std::process::Command::new("xdg-open")
+        .arg(&url)
+        .spawn()
+        .map_err(map_err)?;
+    #[cfg(target_os = "macos")]
+    std::process::Command::new("open")
+        .arg(&url)
+        .spawn()
+        .map_err(map_err)?;
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("cmd")
+        .args(["/C", "start", "", &url])
+        .spawn()
+        .map_err(map_err)?;
+    Ok(())
+}
+
+#[tauri::command]
 fn get_notes_by_date(state: State<DbState>, date: String) -> Result<Vec<Note>, String> {
     let conn = state.0.lock().map_err(map_err)?;
     db::get_notes_by_date(&conn, &date).map_err(map_err)
@@ -363,6 +383,7 @@ pub fn run() {
             delete_attachment,
             rename_attachment,
             open_attachment,
+            open_url,
             get_notes_by_date,
             get_days_with_notes_in_month,
         ])

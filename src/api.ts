@@ -104,6 +104,8 @@ export const api = {
 
   openAttachment: (id: number) => invoke<void>("open_attachment", { id }),
 
+  openUrl: (url: string) => invoke<void>("open_url", { url }),
+
   getNotesByDate: (date: string) => invoke<Note[]>("get_notes_by_date", { date }),
 
   getDaysWithNotesInMonth: (yearMonth: string) =>

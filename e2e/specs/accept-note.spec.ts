@@ -18,6 +18,11 @@ describe("Accept Note", () => {
     await waitForText("My Notes");
     await clickNav("Inbox");
 
+    await browser.waitUntil(
+      () =>
+        browser.execute((id: number) => !!document.querySelector(`[data-note-id="${id}"]`), noteId),
+      { timeout: 5_000, timeoutMsg: `Note card ${noteId} not found in Inbox` }
+    );
     await clickNoteCard(noteId);
     await waitForText("Note actions");
 
