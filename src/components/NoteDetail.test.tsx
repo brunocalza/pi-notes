@@ -151,6 +151,19 @@ describe("NoteDetail", () => {
     expect(api.deleteNote).not.toHaveBeenCalled();
   });
 
+  it("does not call updateNote on title blur when title is unchanged", async () => {
+    const note = makeNote({ id: 1, title: "Same Title", content: "" });
+    vi.mocked(api.getNote).mockResolvedValue(note);
+
+    render(<NoteDetail {...defaultProps} />);
+
+    const titleInput = await screen.findByDisplayValue("Same Title");
+    await userEvent.click(titleInput);
+    await userEvent.tab();
+
+    expect(api.updateNote).not.toHaveBeenCalled();
+  });
+
   it("calls updateNote on title blur", async () => {
     const note = makeNote({ id: 1, title: "Original", content: "" });
     vi.mocked(api.getNote).mockResolvedValue(note);

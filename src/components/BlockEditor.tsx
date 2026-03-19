@@ -294,6 +294,7 @@ export default function BlockEditor({
     setBlocks(final);
     setActive(null);
     const newContent = fromBlocks(final);
+    if (newContent === lastCommitted.current) return;
     lastCommitted.current = newContent;
     onCommit(newContent);
   };

@@ -281,7 +281,10 @@ export default function NoteDetail({
               ref={titleRef}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              onBlur={() => save(title, note.content, tags)}
+              onBlur={() => {
+                if (title.trim() === note.title.trim()) return;
+                save(title, note.content, tags);
+              }}
               placeholder="Untitled"
               className="flex-1 text-xl font-semibold text-hi bg-transparent outline-none placeholder-ghost min-w-0"
             />

@@ -433,13 +433,44 @@ pub fn update_note(
     content: &str,
     tags: &[String],
 ) -> Result<()> {
-    let now = Utc::now().timestamp_millis();
-    conn.execute(
-        "UPDATE notes SET title = ?1, content = ?2, updated_at = ?3 WHERE id = ?4",
-        params![title, content, now, id],
+    let (cur_title, cur_content): (String, String) = conn.query_row(
+        "SELECT title, content FROM notes WHERE id = ?1",
+        params![id],
+        |row| Ok((row.get(0)?, row.get(1)?)),
     )?;
-    sync_tags(conn, id, tags)?;
-    sync_dates(conn, id, content)?;
+
+    let mut stmt = conn.prepare("SELECT tag FROM note_tags WHERE note_id = ?1 ORDER BY tag")?;
+    let mut cur_tags: Vec<String> = stmt
+        .query_map(params![id], |row| row.get(0))?
+        .collect::<rusqlite::Result<_>>()?;
+    let mut new_tags_sorted: Vec<String> = tags
+        .iter()
+        .map(|t| normalize_tag(t))
+        .filter(|t| !t.is_empty())
+        .collect();
+    new_tags_sorted.sort();
+    cur_tags.sort();
+
+    let content_changed = cur_title.as_str() != title || cur_content.as_str() != content;
+    let tags_changed = cur_tags != new_tags_sorted;
+
+    if !content_changed && !tags_changed {
+        return Ok(());
+    }
+
+    if content_changed {
+        let now = Utc::now().timestamp_millis();
+        conn.execute(
+            "UPDATE notes SET title = ?1, content = ?2, updated_at = ?3 WHERE id = ?4",
+            params![title, content, now, id],
+        )?;
+        sync_dates(conn, id, content)?;
+    }
+
+    if tags_changed {
+        sync_tags(conn, id, tags)?;
+    }
+
     Ok(())
 }
 

@@ -42,6 +42,13 @@ describe("BlockEditor", () => {
     });
   });
 
+  it("does not call onCommit on blur when content is unchanged", async () => {
+    render(<BlockEditor content="Original" onCommit={onCommit} onNavigate={onNavigate} />);
+    await userEvent.click(screen.getByText("Original"));
+    await userEvent.tab();
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
   it("renders multiple blocks from double-newline-separated content", () => {
     render(
       <BlockEditor
