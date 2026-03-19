@@ -75,7 +75,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           mkdir -p "$HOME/.local/bin"
-          printf '#!/bin/sh\nzig cc --target=x86_64-linux-gnu.2.17 "$@"\n' \
+          printf '#!/bin/sh\nzig cc --target=x86_64-linux-gnu.2.17 -L/usr/lib/x86_64-linux-gnu -L/usr/lib "$@"\n' \
             > "$HOME/.local/bin/zigcc"
           chmod +x "$HOME/.local/bin/zigcc"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
