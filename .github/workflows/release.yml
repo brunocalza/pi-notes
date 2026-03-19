@@ -1,9 +1,6 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - feat/linux-gpg-signing
   workflow_dispatch:
   release:
     types: [created]
@@ -99,7 +96,7 @@ jobs:
           done
 
       - name: Upload Linux bundle signatures
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && github.event_name == 'release'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
