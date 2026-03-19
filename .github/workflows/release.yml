@@ -26,17 +26,17 @@ jobs:
             rust_target: x86_64-unknown-linux-gnu
             bundles: deb,rpm,appimage
             rustflags: "-C linker=zigcc"
-          - platform: macos-latest
-            rust_target: aarch64-apple-darwin
-            bundles: dmg,app
-            rustflags: ""
-            macos_deployment_target: "12.0"
-          - platform: windows-latest
-            rust_target: x86_64-pc-windows-msvc
-            bundles: nsis
-            rustflags: ""
+          # Temporarily disabled while testing Linux - re-enable before merge
+          #- platform: macos-latest
+          #  rust_target: aarch64-apple-darwin
+          #  bundles: dmg,app
+          #  rustflags: ""
+          #  macos_deployment_target: "12.0"
+          #- platform: windows-latest
+          #  rust_target: x86_64-pc-windows-msvc
+          #  bundles: nsis
+          #  rustflags: ""
 
-    if: github.event_name != 'push' || matrix.platform == 'ubuntu-24.04'
     runs-on: ${{ matrix.platform }}
 
     steps:
