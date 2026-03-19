@@ -1,9 +1,6 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - feat/macos-deployment-target
   workflow_dispatch:
   release:
     types: [created]
@@ -26,16 +23,15 @@ jobs:
             rust_target: x86_64-unknown-linux-gnu
             bundles: deb,rpm,appimage
             rustflags: "-C linker=zigcc"
-          # Temporarily disabled while testing Linux - re-enable before merge
-          #- platform: macos-latest
-          #  rust_target: aarch64-apple-darwin
-          #  bundles: dmg,app
-          #  rustflags: ""
-          #  macos_deployment_target: "12.0"
-          #- platform: windows-latest
-          #  rust_target: x86_64-pc-windows-msvc
-          #  bundles: nsis
-          #  rustflags: ""
+          - platform: macos-latest
+            rust_target: aarch64-apple-darwin
+            bundles: dmg,app
+            rustflags: ""
+            macos_deployment_target: "12.0"
+          - platform: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            bundles: nsis
+            rustflags: ""
 
     runs-on: ${{ matrix.platform }}
 
