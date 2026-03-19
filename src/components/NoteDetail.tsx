@@ -524,7 +524,7 @@ export default function NoteDetail({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,application/pdf"
+              accept="image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               className="hidden"
               onChange={handleAttachFile}
             />
