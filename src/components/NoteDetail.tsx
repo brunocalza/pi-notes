@@ -20,6 +20,7 @@ interface Props {
   focusTitle?: boolean;
   onNavigate: (id: number) => void;
   onTagClick: (tag: string) => void;
+  onDateSelect?: (date: string) => void;
   onDeselect: () => void;
   onRefresh: () => void;
 }
@@ -29,6 +30,7 @@ export default function NoteDetail({
   focusTitle,
   onNavigate,
   onTagClick,
+  onDateSelect,
   onDeselect,
   onRefresh,
 }: Props) {
@@ -218,7 +220,6 @@ export default function NoteDetail({
 
   const missingForAccept = [
     ...(!title.trim() ? ["a title"] : []),
-    ...(tags.length === 0 ? ["at least one tag"] : []),
     ...(!note?.content.trim() ? ["some content"] : []),
   ];
   const canAccept = missingForAccept.length === 0;
@@ -539,6 +540,7 @@ export default function NoteDetail({
                 save(title, newContent, tags);
               }}
               onNavigate={onNavigate}
+              onDateSelect={onDateSelect}
               attachments={attachments}
             />
           </div>

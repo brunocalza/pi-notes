@@ -11,7 +11,7 @@ import {
 describe("Accept Note", () => {
   before(waitForApp);
 
-  it("Accept note is disabled when note has no title, tag, or content", async () => {
+  it("Accept note is disabled when note has no title or content", async () => {
     const noteId = await invoke<number>("insert_note", { title: "", content: "", tags: [] });
 
     await clickNav("My Notes");
@@ -35,11 +35,11 @@ describe("Accept Note", () => {
     if (!isDisabled) throw new Error("Expected Accept note button to be disabled");
   });
 
-  it("accepts a note that has a title, tag, and content — moves it to My Notes", async () => {
+  it("accepts a note that has a title and content — moves it to My Notes", async () => {
     const noteId = await invoke<number>("insert_note", {
       title: "Note to accept",
       content: "Has some content",
-      tags: ["review"],
+      tags: [],
     });
 
     // Navigate away and back to Inbox to trigger a UI refresh

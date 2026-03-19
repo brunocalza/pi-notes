@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { api } from "../api";
 import { FileText } from "lucide-react";
+import DatePicker from "./DatePicker";
 
 interface Props {
   value: string;
@@ -15,6 +16,8 @@ export default function ContentEditor({ value, onChange, rows = 12, placeholder 
   const [allTitles, setAllTitles] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerAbove, setDatePickerAbove] = useState(false);
 
   useEffect(() => {
     api
@@ -29,6 +32,10 @@ export default function ContentEditor({ value, onChange, rows = 12, placeholder 
     return match ? match[1] : null;
   };
 
+  const getDateCommand = (text: string, cursor: number): boolean => {
+    return /(^|\s)\/date$/.test(text.slice(0, cursor));
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     onChange(newValue);
@@ -40,8 +47,16 @@ export default function ContentEditor({ value, onChange, rows = 12, placeholder 
         .slice(0, 8);
       setSuggestions(filtered);
       setActiveIndex(0);
+      setShowDatePicker(false);
     } else {
       setSuggestions([]);
+      if (getDateCommand(newValue, cursor)) {
+        const rect = textareaRef.current?.getBoundingClientRect();
+        setDatePickerAbove(!rect || rect.top > 240);
+        setShowDatePicker(true);
+      } else {
+        setShowDatePicker(false);
+      }
     }
   };
 
@@ -66,6 +81,10 @@ export default function ContentEditor({ value, onChange, rows = 12, placeholder 
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showDatePicker && e.key === "Escape") {
+      setShowDatePicker(false);
+      return;
+    }
     if (suggestions.length === 0) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -129,6 +148,36 @@ export default function ContentEditor({ value, onChange, rows = 12, placeholder 
               {title}
             </button>
           ))}
+        </div>
+      )}
+      {showDatePicker && (
+        <div
+          className={`absolute left-0 z-50 ${datePickerAbove ? "bottom-full mb-1" : "top-full mt-1"}`}
+        >
+          <DatePicker
+            onSelect={(date) => {
+              const ta = textareaRef.current;
+              if (!ta) return;
+              const cursor = ta.selectionStart;
+              const before = value.slice(0, cursor);
+              const after = value.slice(cursor);
+              const cmdMatch = before.match(/(^|\s)(\/date)$/);
+              const newBefore = cmdMatch
+                ? before.slice(0, before.length - cmdMatch[2].length) + date
+                : before + date;
+              onChange(newBefore + after);
+              setShowDatePicker(false);
+              setTimeout(() => {
+                ta.focus();
+                const pos = newBefore.length;
+                ta.setSelectionRange(pos, pos);
+              }, 0);
+            }}
+            onClose={() => {
+              setShowDatePicker(false);
+              textareaRef.current?.focus();
+            }}
+          />
         </div>
       )}
     </div>

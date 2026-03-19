@@ -47,6 +47,46 @@ describe("ContentEditor", () => {
     });
   });
 
+  it("shows DatePicker when /date command is typed", async () => {
+    render(<ContentEditor value="" onChange={vi.fn()} />);
+    const textarea = screen.getByRole("textbox");
+    fireEvent.change(textarea, { target: { value: "/date", selectionStart: 5 } });
+    await waitFor(() => {
+      expect(screen.getByText("Su")).toBeInTheDocument();
+    });
+  });
+
+  it("hides DatePicker when Escape is pressed", async () => {
+    render(<ContentEditor value="" onChange={vi.fn()} />);
+    const textarea = screen.getByRole("textbox");
+    fireEvent.change(textarea, { target: { value: "/date", selectionStart: 5 } });
+    await screen.findByText("Su");
+    fireEvent.keyDown(textarea, { key: "Escape" });
+    expect(screen.queryByText("Su")).not.toBeInTheDocument();
+  });
+
+  it("calls onChange and closes DatePicker when a day is selected", async () => {
+    const onChange = vi.fn();
+    // Start with value="" so fireEvent.change triggers React's onChange handler
+    render(<ContentEditor value="" onChange={onChange} />);
+    const textarea = screen.getByRole("textbox");
+
+    fireEvent.change(textarea, { target: { value: "/date", selectionStart: 5 } });
+    await screen.findByText("Su");
+
+    fireEvent.mouseDown(screen.getAllByText("15")[0]);
+    expect(onChange).toHaveBeenCalled();
+    expect(screen.queryByText("Su")).not.toBeInTheDocument();
+  });
+
+  it("does not show DatePicker when a wikilink is open", async () => {
+    render(<ContentEditor value="" onChange={vi.fn()} />);
+    const textarea = screen.getByRole("textbox");
+    fireEvent.change(textarea, { target: { value: "[[/date", selectionStart: 6 } });
+    await waitFor(() => {});
+    expect(screen.queryByText("Su")).not.toBeInTheDocument();
+  });
+
   it("hides suggestions when Escape is pressed", async () => {
     vi.mocked(api.getAllNoteTitles).mockResolvedValue(["Note A"]);
 

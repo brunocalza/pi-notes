@@ -11,6 +11,7 @@ vi.mock("../api", () => ({
     getTrashCursor: vi.fn().mockResolvedValue([]),
     getNotesByTagCursor: vi.fn().mockResolvedValue([]),
     searchNotesCursor: vi.fn().mockResolvedValue([]),
+    getNotesByDate: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -36,6 +37,7 @@ beforeEach(() => {
   vi.mocked(api.getTrashCursor).mockResolvedValue([]);
   vi.mocked(api.getNotesByTagCursor).mockResolvedValue([]);
   vi.mocked(api.searchNotesCursor).mockResolvedValue([]);
+  vi.mocked(api.getNotesByDate).mockResolvedValue([]);
 });
 
 describe("Feed", () => {
@@ -142,5 +144,24 @@ describe("Feed", () => {
 
     rerender(<Feed {...defaultProps} view={{ tag: "react" }} />);
     expect(screen.getByText("#react")).toBeInTheDocument();
+  });
+
+  it("shows English-formatted date as title for date view", () => {
+    render(<Feed {...defaultProps} view={{ date: "2026-03-15" }} />);
+    expect(screen.getByText("March 15, 2026")).toBeInTheDocument();
+  });
+
+  it("calls getNotesByDate when in date view", async () => {
+    const notes = [makeNote({ id: 1, title: "Date Note" })];
+    vi.mocked(api.getNotesByDate).mockResolvedValue(notes);
+    render(<Feed {...defaultProps} view={{ date: "2026-03-15" }} />);
+    await waitFor(() => {
+      expect(api.getNotesByDate).toHaveBeenCalledWith("2026-03-15");
+    });
+  });
+
+  it("hides search input for date view", () => {
+    render(<Feed {...defaultProps} view={{ date: "2026-03-15" }} />);
+    expect(screen.queryByPlaceholderText("Search...")).not.toBeInTheDocument();
   });
 });

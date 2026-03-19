@@ -300,6 +300,21 @@ fn open_attachment(state: State<DbState>, id: i64) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn get_notes_by_date(state: State<DbState>, date: String) -> Result<Vec<Note>, String> {
+    let conn = state.0.lock().map_err(map_err)?;
+    db::get_notes_by_date(&conn, &date).map_err(map_err)
+}
+
+#[tauri::command]
+fn get_days_with_notes_in_month(
+    state: State<DbState>,
+    year_month: String,
+) -> Result<Vec<u32>, String> {
+    let conn = state.0.lock().map_err(map_err)?;
+    db::get_days_with_notes_in_month(&conn, &year_month).map_err(map_err)
+}
+
 pub fn run() {
     tauri::Builder::default()
         .manage(DbState(Mutex::new(
@@ -348,6 +363,8 @@ pub fn run() {
             delete_attachment,
             rename_attachment,
             open_attachment,
+            get_notes_by_date,
+            get_days_with_notes_in_month,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,6 +1,20 @@
 import { useState, useEffect } from "react";
 import { api } from "../api";
-import { Inbox, FileText, Trash2, Tag, Pencil, X, Search, Sun, Moon, Settings } from "lucide-react";
+import {
+  Inbox,
+  FileText,
+  Trash2,
+  Tag,
+  Pencil,
+  X,
+  Search,
+  Sun,
+  Moon,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+} from "lucide-react";
 import { TagEntry, View, ColorTheme } from "../types";
 
 interface Props {
@@ -9,6 +23,7 @@ interface Props {
   inboxCount: number;
   theme: "dark" | "light";
   colorTheme: ColorTheme;
+  refreshKey: number;
   onViewChange: (v: View) => void;
   onTagRename: () => void;
   onTagDelete: () => void;
@@ -61,6 +76,7 @@ export default function Sidebar({
   inboxCount,
   theme,
   colorTheme,
+  refreshKey,
   onViewChange,
   onTagRename,
   onTagDelete,
@@ -76,6 +92,20 @@ export default function Sidebar({
   const [dbPath, setDbPath] = useState("");
   const [dbPathInput, setDbPathInput] = useState("");
   const [dbPathError, setDbPathError] = useState("");
+
+  const today = new Date();
+  const [calYear, setCalYear] = useState(today.getFullYear());
+  const [calMonth, setCalMonth] = useState(today.getMonth());
+  const [daysWithNotes, setDaysWithNotes] = useState<number[]>([]);
+
+  useEffect(() => {
+    setDaysWithNotes([]);
+    const mm = String(calMonth + 1).padStart(2, "0");
+    api
+      .getDaysWithNotesInMonth(`${calYear}-${mm}`)
+      .then(setDaysWithNotes)
+      .catch(() => {});
+  }, [calYear, calMonth, refreshKey]);
 
   useEffect(() => {
     if (settingsOpen) {
@@ -106,6 +136,9 @@ export default function Sidebar({
     if (typeof v === "string" && typeof view === "string") return view === v;
     if (typeof v === "object" && "tag" in v && typeof view === "object" && "tag" in view) {
       return view.tag === v.tag;
+    }
+    if (typeof v === "object" && "date" in v && typeof view === "object" && "date" in view) {
+      return view.date === v.date;
     }
     return false;
   };
@@ -172,6 +205,132 @@ export default function Sidebar({
           <span>Trash</span>
         </div>
       </nav>
+
+      {/* Calendar widget */}
+      {(() => {
+        const WEEKDAYS_SHORT = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+        const MONTHS_SHORT = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
+        const firstDay = new Date(calYear, calMonth, 1).getDay();
+        const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+        const prevDays = new Date(calYear, calMonth, 0).getDate();
+        const cells: Array<{ day: number; cur: boolean }> = [];
+        for (let i = firstDay - 1; i >= 0; i--) cells.push({ day: prevDays - i, cur: false });
+        for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, cur: true });
+        while (cells.length % 7 !== 0)
+          cells.push({ day: cells.length - daysInMonth - firstDay + 1, cur: false });
+
+        const isToday = (d: number) =>
+          d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
+        const isActiveDate = (d: number) => {
+          const mm = String(calMonth + 1).padStart(2, "0");
+          const dd = String(d).padStart(2, "0");
+          return isActive({ date: `${calYear}-${mm}-${dd}` });
+        };
+
+        return (
+          <div className="px-3 mt-4 shrink-0">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Calendar size={13} className="text-ghost" />
+              <button
+                onClick={() => {
+                  setCalMonth(today.getMonth());
+                  setCalYear(today.getFullYear());
+                }}
+                className={`text-ghost text-xs font-semibold uppercase tracking-wider flex-1 text-left transition-colors ${calMonth !== today.getMonth() || calYear !== today.getFullYear() ? "hover:text-lo cursor-pointer" : "cursor-default"}`}
+                title="Go to today"
+              >
+                {MONTHS_SHORT[calMonth]} {calYear}
+              </button>
+              <button
+                onClick={() => {
+                  if (calMonth === 0) {
+                    setCalMonth(11);
+                    setCalYear((y) => y - 1);
+                  } else setCalMonth((m) => m - 1);
+                }}
+                className="p-0.5 rounded hover:bg-lift text-ghost hover:text-lo transition-colors"
+              >
+                <ChevronLeft size={12} />
+              </button>
+              <button
+                onClick={() => {
+                  if (calMonth === 11) {
+                    setCalMonth(0);
+                    setCalYear((y) => y + 1);
+                  } else setCalMonth((m) => m + 1);
+                }}
+                className="p-0.5 rounded hover:bg-lift text-ghost hover:text-lo transition-colors"
+              >
+                <ChevronRight size={12} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-7 mb-0.5">
+              {WEEKDAYS_SHORT.map((wd) => (
+                <div key={wd} className="text-center text-[9px] text-ghost font-medium py-0.5">
+                  {wd}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7">
+              {cells.map((cell, idx) => {
+                const hasDot = cell.cur && daysWithNotes.includes(cell.day);
+                const active = cell.cur && isActiveDate(cell.day);
+                const todayCell = cell.cur && isToday(cell.day);
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      if (!cell.cur) return;
+                      const mm = String(calMonth + 1).padStart(2, "0");
+                      const dd = String(cell.day).padStart(2, "0");
+                      onViewChange({ date: `${calYear}-${mm}-${dd}` });
+                    }}
+                    className={`flex flex-col items-center py-0.5 rounded transition-colors ${
+                      !cell.cur
+                        ? "cursor-default"
+                        : active
+                          ? "bg-raised cursor-pointer"
+                          : "hover:bg-field cursor-pointer"
+                    }`}
+                  >
+                    <span
+                      className={`text-[10px] leading-tight ${
+                        !cell.cur
+                          ? "text-ghost"
+                          : active
+                            ? "text-hi font-semibold"
+                            : todayCell
+                              ? "text-accent font-semibold"
+                              : "text-dim"
+                      }`}
+                    >
+                      {cell.day}
+                    </span>
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full mt-0.5 ${hasDot ? (active ? "bg-[var(--c-text-lo)]" : "bg-[var(--c-text-dim)]") : "invisible"}`}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Tags — scrollable */}
       <div className="flex-1 min-h-0 overflow-y-auto mt-6 px-4">

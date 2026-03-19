@@ -169,6 +169,7 @@ export default function App() {
         inboxCount={inboxCount}
         theme={theme}
         colorTheme={colorTheme}
+        refreshKey={feedRefreshKey}
         onViewChange={handleViewChange}
         onTagRename={refresh}
         onTagDelete={refresh}
@@ -207,6 +208,7 @@ export default function App() {
             setSelectedNoteId(id);
           }}
           onTagClick={(tag) => handleViewChange({ tag })}
+          onDateSelect={(date) => handleViewChange({ date })}
           onDeselect={() => {
             setFocusNewNote(false);
             setSelectedNoteId(null);

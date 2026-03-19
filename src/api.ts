@@ -103,4 +103,9 @@ export const api = {
     invoke<void>("rename_attachment", { id, filename }),
 
   openAttachment: (id: number) => invoke<void>("open_attachment", { id }),
+
+  getNotesByDate: (date: string) => invoke<Note[]>("get_notes_by_date", { date }),
+
+  getDaysWithNotesInMonth: (yearMonth: string) =>
+    invoke<number[]>("get_days_with_notes_in_month", { yearMonth }),
 };

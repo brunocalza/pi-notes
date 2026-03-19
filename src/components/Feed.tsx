@@ -25,6 +25,14 @@ function viewTitle(view: View): string {
   if (view === "inbox") return "Inbox";
   if (view === "trash") return "Trash";
   if (typeof view === "object" && "tag" in view) return `#${view.tag}`;
+  if (typeof view === "object" && "date" in view) {
+    const [y, m, d] = view.date.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
   return "Notes";
 }
 
@@ -41,6 +49,9 @@ async function fetchPage(view: View, searchQuery: string, cursor: Cursor | null)
   if (view === "trash") return api.getTrashCursor(PAGE_SIZE, cursor);
   if (typeof view === "object" && "tag" in view) {
     return api.getNotesByTagCursor(view.tag, PAGE_SIZE, cursor);
+  }
+  if (typeof view === "object" && "date" in view) {
+    return api.getNotesByDate(view.date);
   }
   return [];
 }
