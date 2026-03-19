@@ -71,6 +71,56 @@ describe("BlockEditor", () => {
     });
   });
 
+  it("shows DatePicker when /date command is typed in edit mode", async () => {
+    render(<BlockEditor content="Start" onCommit={onCommit} onNavigate={onNavigate} />);
+    await userEvent.click(screen.getByText("Start"));
+    const textarea = screen.getByRole("textbox");
+    fireEvent.change(textarea, { target: { value: "/date", selectionStart: 5 } });
+    await waitFor(() => {
+      expect(screen.getByText("Su")).toBeInTheDocument();
+    });
+  });
+
+  it("renders YYYY-MM-DD dates as human-readable clickable links in read mode", async () => {
+    render(
+      <BlockEditor content="Note from 2026-03-15" onCommit={onCommit} onNavigate={onNavigate} />
+    );
+    await waitFor(() => {
+      expect(screen.getByText("Mar 15, 2026")).toBeInTheDocument();
+    });
+  });
+
+  it("calls onDateSelect when a date link is clicked", async () => {
+    const onDateSelect = vi.fn();
+    render(
+      <BlockEditor
+        content="2026-03-15"
+        onCommit={onCommit}
+        onNavigate={onNavigate}
+        onDateSelect={onDateSelect}
+      />
+    );
+    await waitFor(() => screen.getByText("Mar 15, 2026"));
+    await userEvent.click(screen.getByText("Mar 15, 2026"));
+    await waitFor(() => {
+      expect(onDateSelect).toHaveBeenCalledWith("2026-03-15");
+    });
+  });
+
+  it("does not render invalid dates as links", async () => {
+    render(
+      <BlockEditor
+        content="2025-13-01 and 2025-02-30 and 2025-00-01"
+        onCommit={onCommit}
+        onNavigate={onNavigate}
+      />
+    );
+    await waitFor(() => screen.getByText(/2025-13-01/));
+    // None of the invalid dates should be rendered as anchor links
+    const links = document.querySelectorAll("a[href^='date:']");
+    expect(links.length).toBe(0);
+  });
+
   it("calls onNavigate when a wikilink is clicked", async () => {
     vi.mocked(api.getNoteByTitle).mockResolvedValue({ id: 7 } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 

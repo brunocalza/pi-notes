@@ -241,6 +241,15 @@ fn create_schema(conn: &Connection) -> Result<()> {
 
         CREATE INDEX IF NOT EXISTS idx_note_tags_tag
             ON note_tags(tag, note_id);
+
+        CREATE TABLE IF NOT EXISTS note_dates (
+            note_id INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+            date    TEXT    NOT NULL,
+            PRIMARY KEY (note_id, date)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_note_dates_date
+            ON note_dates(date);
         "#,
     )?;
     Ok(())
@@ -294,6 +303,7 @@ pub fn insert_note(conn: &Connection, title: &str, content: &str, tags: &[String
     )?;
     let id = conn.last_insert_rowid();
     sync_tags(conn, id, tags)?;
+    sync_dates(conn, id, content)?;
     Ok(id)
 }
 
@@ -429,6 +439,7 @@ pub fn update_note(
         params![title, content, now, id],
     )?;
     sync_tags(conn, id, tags)?;
+    sync_dates(conn, id, content)?;
     Ok(())
 }
 
@@ -641,6 +652,71 @@ pub fn get_backlinks(conn: &Connection, id: i64) -> Result<Vec<Note>> {
     Ok(rows)
 }
 
+/// Returns true if y/m/d form a valid calendar date (same logic as JS Date round-trip).
+fn is_valid_date(year: u32, month: u32, day: u32) -> bool {
+    if month == 0 || month > 12 || day == 0 {
+        return false;
+    }
+    let days_in_month = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 => {
+            let leap =
+                (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400);
+            if leap {
+                29
+            } else {
+                28
+            }
+        }
+        _ => return false,
+    };
+    day <= days_in_month
+}
+
+/// Extract all valid YYYY-MM-DD date strings from note content without any extra crates.
+fn extract_dates(content: &str) -> Vec<String> {
+    let b = content.as_bytes();
+    let len = b.len();
+    let mut dates = Vec::new();
+    let mut i = 0;
+    while i + 10 <= len {
+        if b[i..i + 4].iter().all(|c| c.is_ascii_digit())
+            && b[i + 4] == b'-'
+            && b[i + 5..i + 7].iter().all(|c| c.is_ascii_digit())
+            && b[i + 7] == b'-'
+            && b[i + 8..i + 10].iter().all(|c| c.is_ascii_digit())
+        {
+            let before_ok = i == 0 || !b[i - 1].is_ascii_digit();
+            let after_ok = i + 10 >= len || !b[i + 10].is_ascii_digit();
+            if before_ok && after_ok {
+                let year: u32 = content[i..i + 4].parse().unwrap_or(0);
+                let month: u32 = content[i + 5..i + 7].parse().unwrap_or(0);
+                let day: u32 = content[i + 8..i + 10].parse().unwrap_or(0);
+                if is_valid_date(year, month, day) {
+                    dates.push(content[i..i + 10].to_string());
+                }
+            }
+        }
+        i += 1;
+    }
+    dates
+}
+
+fn sync_dates(conn: &Connection, note_id: i64, content: &str) -> Result<()> {
+    conn.execute(
+        "DELETE FROM note_dates WHERE note_id = ?1",
+        params![note_id],
+    )?;
+    for date in extract_dates(content) {
+        conn.execute(
+            "INSERT OR IGNORE INTO note_dates (note_id, date) VALUES (?1, ?2)",
+            params![note_id, date],
+        )?;
+    }
+    Ok(())
+}
+
 fn sync_tags(conn: &Connection, note_id: i64, tags: &[String]) -> Result<()> {
     conn.execute("DELETE FROM note_tags WHERE note_id = ?1", params![note_id])?;
     for tag in tags {
@@ -745,6 +821,38 @@ pub fn rename_attachment(conn: &Connection, id: i64, new_filename: &str) -> Resu
         params![new_filename, id],
     )?;
     Ok(())
+}
+
+pub fn get_notes_by_date(conn: &Connection, date: &str) -> Result<Vec<Note>> {
+    let sql = format!(
+        "{SELECT}
+         WHERE n.in_inbox = 0 AND n.trashed = 0
+           AND n.id IN (SELECT note_id FROM note_dates WHERE date = ?1)
+         GROUP BY n.id
+         ORDER BY n.created_at DESC"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt
+        .query_map(params![date], row_to_note)?
+        .collect::<rusqlite::Result<_>>()?;
+    Ok(rows)
+}
+
+pub fn get_days_with_notes_in_month(conn: &Connection, year_month: &str) -> Result<Vec<u32>> {
+    let prefix = format!("{}-", year_month);
+    let pattern = format!("{}__", prefix);
+    let mut stmt = conn.prepare(
+        "SELECT DISTINCT CAST(substr(nd.date, 9, 2) AS INTEGER)
+         FROM note_dates nd
+         JOIN notes n ON n.id = nd.note_id
+         WHERE nd.date LIKE ?1
+           AND n.in_inbox = 0 AND n.trashed = 0",
+    )?;
+    let mut days: Vec<u32> = stmt
+        .query_map(params![pattern], |row| row.get::<_, u32>(0))?
+        .collect::<rusqlite::Result<_>>()?;
+    days.sort();
+    Ok(days)
 }
 
 fn prepare_fts_query(query: &str) -> String {

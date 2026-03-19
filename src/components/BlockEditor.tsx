@@ -6,6 +6,7 @@ import rehypeKatex from "rehype-katex";
 import { FileText } from "lucide-react";
 import { api } from "../api";
 import { AttachmentMeta } from "../types";
+import DatePicker from "./DatePicker";
 
 // Split content into paragraph blocks, keeping code fences intact.
 function toBlocks(content: string): string[] {
@@ -44,6 +45,7 @@ function fromBlocks(blocks: string[]): string {
 const urlTransform = (url: string) => {
   if (url.startsWith("wikilink:")) return url;
   if (url.startsWith("attachment:")) return url;
+  if (url.startsWith("date:")) return url;
   if (!/^[a-z][a-z\d+\-.]*:/i.test(url)) return url;
   if (/^(https?|mailto|tel|ircs?):/i.test(url)) return url;
   return "";
@@ -89,20 +91,57 @@ function preprocessWikilinks(content: string): string {
   return content.replace(/\[\[([^\]]+)\]\]/g, "[$1](<wikilink:$1>)");
 }
 
+function isValidDate(y: number, m: number, d: number): boolean {
+  const dt = new Date(y, m - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+}
+
+function formatDate(y: number, m: number, d: number): string {
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function preprocessDates(content: string): string {
+  return content.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (match, y, m, d) => {
+    const yn = Number(y),
+      mn = Number(m),
+      dn = Number(d);
+    return isValidDate(yn, mn, dn) ? `[${formatDate(yn, mn, dn)}](date:${match})` : match;
+  });
+}
+
+function preprocess(content: string): string {
+  return preprocessDates(preprocessWikilinks(content));
+}
+
 function getWikilinkQuery(text: string, cursor: number): string | null {
   const before = text.slice(0, cursor);
   const match = before.match(/\[\[([^\]]*)$/);
   return match ? match[1] : null;
 }
 
+function getDateCommand(text: string, cursor: number): boolean {
+  return /(^|\s)\/date$/.test(text.slice(0, cursor));
+}
+
 interface Props {
   content: string;
   onCommit: (content: string) => void;
   onNavigate: (id: number) => void;
+  onDateSelect?: (date: string) => void;
   attachments?: AttachmentMeta[];
 }
 
-export default function BlockEditor({ content, onCommit, onNavigate, attachments = [] }: Props) {
+export default function BlockEditor({
+  content,
+  onCommit,
+  onNavigate,
+  onDateSelect,
+  attachments = [],
+}: Props) {
   const [blocks, setBlocks] = useState(() => toBlocks(content));
   const [active, setActive] = useState<number | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -112,6 +151,8 @@ export default function BlockEditor({ content, onCommit, onNavigate, attachments
   const [allTitles, setAllTitles] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerAbove, setDatePickerAbove] = useState(false);
 
   useEffect(() => {
     api
@@ -279,6 +320,20 @@ export default function BlockEditor({ content, onCommit, onNavigate, attachments
             </span>
           );
         }
+        if (href?.startsWith("date:")) {
+          const date = href.slice("date:".length);
+          return (
+            <span
+              className="wikilink cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDateSelect?.(date);
+              }}
+            >
+              {children}
+            </span>
+          );
+        }
         return (
           <a href={href} target="_blank" rel="noopener noreferrer">
             {children}
@@ -304,7 +359,7 @@ export default function BlockEditor({ content, onCommit, onNavigate, attachments
         return <img src={src} alt={alt} className="max-w-full rounded-lg" />;
       },
     }),
-    [onNavigate, attachments]
+    [onNavigate, onDateSelect, attachments]
   );
 
   return (
@@ -327,12 +382,25 @@ export default function BlockEditor({ content, onCommit, onNavigate, attachments
                     allTitles.filter((t) => t.toLowerCase().includes(q.toLowerCase())).slice(0, 8)
                   );
                   setActiveIdx(0);
+                  setShowDatePicker(false);
                 } else {
                   setSuggestions([]);
+                  // /date command
+                  if (getDateCommand(e.target.value, e.target.selectionStart)) {
+                    const rect = taRef.current?.getBoundingClientRect();
+                    setDatePickerAbove(!rect || rect.top > 240);
+                    setShowDatePicker(true);
+                  } else {
+                    setShowDatePicker(false);
+                  }
                 }
               }}
               onBlur={() => commitBlock(i, blocks[i])}
               onKeyDown={(e) => {
+                if (showDatePicker && e.key === "Escape") {
+                  setShowDatePicker(false);
+                  return;
+                }
                 if (suggestions.length > 0) {
                   if (e.key === "ArrowDown") {
                     e.preventDefault();
@@ -425,6 +493,46 @@ export default function BlockEditor({ content, onCommit, onNavigate, attachments
                 ))}
               </div>
             )}
+            {showDatePicker && (
+              <div
+                className={`absolute left-0 z-50 ${datePickerAbove ? "bottom-full mb-1" : "top-full mt-1"}`}
+              >
+                <DatePicker
+                  onSelect={(date) => {
+                    const ta = taRef.current;
+                    if (!ta) return;
+                    const cursor = ta.selectionStart;
+                    const blockText = blocks[i];
+                    const before = blockText.slice(0, cursor);
+                    const after = blockText.slice(cursor);
+                    const cmdMatch = before.match(/(^|\s)(\/date)$/);
+                    const newBefore = cmdMatch
+                      ? before.slice(0, before.length - cmdMatch[2].length) + date
+                      : before + date;
+                    const nb = [...blocks];
+                    nb[i] = newBefore + after;
+                    setBlocks(nb);
+                    setShowDatePicker(false);
+                    setTimeout(() => {
+                      ta.focus();
+                      const pos = newBefore.length;
+                      ta.setSelectionRange(pos, pos);
+                    }, 0);
+                    const newContent = fromBlocks(
+                      [...blocks.slice(0, i), newBefore + after, ...blocks.slice(i + 1)].filter(
+                        (b) => b.trim()
+                      )
+                    );
+                    lastCommitted.current = newContent;
+                    onCommit(newContent);
+                  }}
+                  onClose={() => {
+                    setShowDatePicker(false);
+                    taRef.current?.focus();
+                  }}
+                />
+              </div>
+            )}
           </div>
         ) : (
           <div key={i} onClick={() => setActive(i)} className="cursor-text">
@@ -434,7 +542,7 @@ export default function BlockEditor({ content, onCommit, onNavigate, attachments
               urlTransform={urlTransform}
               components={components}
             >
-              {preprocessWikilinks(block)}
+              {preprocess(block)}
             </ReactMarkdown>
           </div>
         )

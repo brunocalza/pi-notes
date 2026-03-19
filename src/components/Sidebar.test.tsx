@@ -9,6 +9,7 @@ vi.mock("../api", () => ({
     renameTag: vi.fn(),
     deleteTag: vi.fn(),
     getDbPathSetting: vi.fn().mockResolvedValue("/home/user/.local/share/pi-notes/notes.db"),
+    getDaysWithNotesInMonth: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -18,6 +19,7 @@ const defaultProps = {
   inboxCount: 0,
   theme: "dark" as const,
   colorTheme: "graphite" as const,
+  refreshKey: 0,
   onViewChange: vi.fn(),
   onTagRename: vi.fn(),
   onTagDelete: vi.fn(),
@@ -38,12 +40,14 @@ describe("Sidebar", () => {
 
   it("shows inbox count badge when count > 0", () => {
     render(<Sidebar {...defaultProps} inboxCount={3} />);
-    expect(screen.getByText("3")).toBeInTheDocument();
+    const badge = document.querySelector(".bg-inbox-badge");
+    expect(badge).toBeInTheDocument();
+    expect(badge?.textContent).toBe("3");
   });
 
   it("hides inbox count badge when count is 0", () => {
     render(<Sidebar {...defaultProps} inboxCount={0} />);
-    expect(screen.queryByText("0")).not.toBeInTheDocument();
+    expect(document.querySelector(".bg-inbox-badge")).not.toBeInTheDocument();
   });
 
   it("calls onViewChange with correct view when nav items are clicked", async () => {
@@ -117,5 +121,105 @@ describe("Sidebar", () => {
     render(<Sidebar {...defaultProps} />);
     await userEvent.click(screen.getByText("Settings"));
     expect(screen.getByText("Appearance")).toBeInTheDocument();
+  });
+});
+
+describe("Sidebar calendar", () => {
+  const MONTHS = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(api.getDaysWithNotesInMonth).mockResolvedValue([]);
+  });
+
+  it("shows current month and year", () => {
+    const now = new Date();
+    render(<Sidebar {...defaultProps} />);
+    expect(screen.getByText(`${MONTHS[now.getMonth()]} ${now.getFullYear()}`)).toBeInTheDocument();
+  });
+
+  it("calls getDaysWithNotesInMonth with current year-month on mount", async () => {
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    render(<Sidebar {...defaultProps} />);
+    await waitFor(() => {
+      expect(api.getDaysWithNotesInMonth).toHaveBeenCalledWith(`${now.getFullYear()}-${mm}`);
+    });
+  });
+
+  it("refetches dots when refreshKey changes", async () => {
+    const { rerender } = render(<Sidebar {...defaultProps} refreshKey={0} />);
+    await waitFor(() => expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(1));
+    rerender(<Sidebar {...defaultProps} refreshKey={1} />);
+    await waitFor(() => expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(2));
+  });
+
+  it("calls onViewChange with { date } when a day is clicked", async () => {
+    const onViewChange = vi.fn();
+    const now = new Date();
+    const year = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    render(<Sidebar {...defaultProps} onViewChange={onViewChange} />);
+    // "10" never appears in leading/trailing padding (at most 6 days from adjacent month)
+    await userEvent.click(screen.getAllByText("10")[0]);
+    expect(onViewChange).toHaveBeenCalledWith({ date: `${year}-${mm}-10` });
+  });
+
+  it("navigates to next month and refetches dots", async () => {
+    const now = new Date();
+    render(<Sidebar {...defaultProps} />);
+    await waitFor(() => expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(1));
+
+    // buttons[0]=today, buttons[1]=prev, buttons[2]=next, then day cells
+    const buttons = screen.getAllByRole("button");
+    await userEvent.click(buttons[2]);
+
+    const nextMonth = (now.getMonth() + 1) % 12;
+    const nextYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    await waitFor(() => {
+      expect(screen.getByText(`${MONTHS[nextMonth]} ${nextYear}`)).toBeInTheDocument();
+      expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("navigates to previous month and refetches dots", async () => {
+    const now = new Date();
+    render(<Sidebar {...defaultProps} />);
+    await waitFor(() => expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(1));
+
+    // buttons[0]=today, buttons[1]=prev, buttons[2]=next, then day cells
+    const buttons = screen.getAllByRole("button");
+    await userEvent.click(buttons[1]);
+
+    const prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+    const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    await waitFor(() => {
+      expect(screen.getByText(`${MONTHS[prevMonth]} ${prevYear}`)).toBeInTheDocument();
+      expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("renders a dot for each day returned by getDaysWithNotesInMonth", async () => {
+    vi.mocked(api.getDaysWithNotesInMonth).mockResolvedValue([5, 15, 20]);
+    render(<Sidebar {...defaultProps} />);
+    await waitFor(() => {
+      const visibleDots = Array.from(document.querySelectorAll(".rounded-full")).filter(
+        (el) => !el.classList.contains("invisible")
+      );
+      expect(visibleDots.length).toBe(3);
+    });
   });
 });
