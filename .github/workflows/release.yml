@@ -1,6 +1,9 @@
 name: Release
 
 on:
+  push:
+    branches:
+      - feat/linux-gpg-signing
   workflow_dispatch:
   release:
     types: [created]
@@ -75,3 +78,30 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundles }}
+
+      - name: GPG-sign Linux bundles
+        if: runner.os == 'Linux'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          for f in \
+            src-tauri/target/${{ matrix.rust_target }}/release/bundle/appimage/*.AppImage \
+            src-tauri/target/${{ matrix.rust_target }}/release/bundle/deb/*.deb \
+            src-tauri/target/${{ matrix.rust_target }}/release/bundle/rpm/*.rpm; do
+            [ -f "$f" ] && gpg --batch --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
+              --detach-sign --armor "$f"
+          done
+
+      - name: Upload Linux bundle signatures
+        if: runner.os == 'Linux'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for f in \
+            src-tauri/target/${{ matrix.rust_target }}/release/bundle/appimage/*.asc \
+            src-tauri/target/${{ matrix.rust_target }}/release/bundle/deb/*.asc \
+            src-tauri/target/${{ matrix.rust_target }}/release/bundle/rpm/*.asc; do
+            [ -f "$f" ] && gh release upload "${{ github.ref_name }}" "$f" --clobber
+          done
