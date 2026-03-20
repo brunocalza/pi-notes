@@ -98,7 +98,9 @@ describe("NoteDetail", () => {
   it("calls trashNote on a regular (non-inbox) note", async () => {
     const onDeselect = vi.fn();
     const onRefresh = vi.fn();
-    vi.mocked(api.getNote).mockResolvedValue(makeNote({ id: ID5, in_inbox: false, trashed: false }));
+    vi.mocked(api.getNote).mockResolvedValue(
+      makeNote({ id: ID5, in_inbox: false, trashed: false })
+    );
 
     render(<NoteDetail {...defaultProps} onDeselect={onDeselect} onRefresh={onRefresh} />);
 

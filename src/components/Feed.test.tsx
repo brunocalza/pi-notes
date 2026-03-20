@@ -56,7 +56,10 @@ describe("Feed", () => {
   });
 
   it("renders a list of notes", async () => {
-    const notes = [makeNote({ id: "00000000-0000-0000-0000-000000000001", title: "First" }), makeNote({ id: "00000000-0000-0000-0000-000000000002", title: "Second" })];
+    const notes = [
+      makeNote({ id: "00000000-0000-0000-0000-000000000001", title: "First" }),
+      makeNote({ id: "00000000-0000-0000-0000-000000000002", title: "Second" }),
+    ];
     vi.mocked(api.listNotesCursor).mockResolvedValue(notes);
     render(<Feed {...defaultProps} />);
     await waitFor(() => {
