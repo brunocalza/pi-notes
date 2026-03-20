@@ -20,8 +20,14 @@ vi.mock("../api", () => ({
   },
 }));
 
+const ID1 = "00000000-0000-0000-0000-000000000001";
+const ID2 = "00000000-0000-0000-0000-000000000002";
+const ID5 = "00000000-0000-0000-0000-000000000005";
+const ID7 = "00000000-0000-0000-0000-000000000007";
+const ID99 = "00000000-0000-0000-0000-000000000099";
+
 const defaultProps = {
-  noteId: 1,
+  noteId: ID1,
   onNavigate: vi.fn(),
   onTagClick: vi.fn(),
   onDeselect: vi.fn(),
@@ -62,7 +68,7 @@ describe("NoteDetail", () => {
 
   it("renders backlinks when present", async () => {
     vi.mocked(api.getNote).mockResolvedValue(makeNote());
-    vi.mocked(api.getBacklinks).mockResolvedValue([makeNote({ id: 2, title: "Linking Note" })]);
+    vi.mocked(api.getBacklinks).mockResolvedValue([makeNote({ id: ID2, title: "Linking Note" })]);
 
     render(<NoteDetail {...defaultProps} />);
 
@@ -74,7 +80,7 @@ describe("NoteDetail", () => {
   it("calls trashNote, onDeselect, and onRefresh when trash button is clicked", async () => {
     const onDeselect = vi.fn();
     const onRefresh = vi.fn();
-    vi.mocked(api.getNote).mockResolvedValue(makeNote({ id: 1 }));
+    vi.mocked(api.getNote).mockResolvedValue(makeNote({ id: ID1 }));
 
     render(<NoteDetail {...defaultProps} onDeselect={onDeselect} onRefresh={onRefresh} />);
 
@@ -83,7 +89,7 @@ describe("NoteDetail", () => {
     await userEvent.click(screen.getByText("Move to trash"));
 
     await waitFor(() => {
-      expect(api.trashNote).toHaveBeenCalledWith(1);
+      expect(api.trashNote).toHaveBeenCalledWith(ID1);
       expect(onDeselect).toHaveBeenCalled();
       expect(onRefresh).toHaveBeenCalled();
     });
@@ -92,7 +98,9 @@ describe("NoteDetail", () => {
   it("calls trashNote on a regular (non-inbox) note", async () => {
     const onDeselect = vi.fn();
     const onRefresh = vi.fn();
-    vi.mocked(api.getNote).mockResolvedValue(makeNote({ id: 5, in_inbox: false, trashed: false }));
+    vi.mocked(api.getNote).mockResolvedValue(
+      makeNote({ id: ID5, in_inbox: false, trashed: false })
+    );
 
     render(<NoteDetail {...defaultProps} onDeselect={onDeselect} onRefresh={onRefresh} />);
 
@@ -101,14 +109,14 @@ describe("NoteDetail", () => {
     await userEvent.click(screen.getByText("Move to trash"));
 
     await waitFor(() => {
-      expect(api.trashNote).toHaveBeenCalledWith(5);
+      expect(api.trashNote).toHaveBeenCalledWith(ID5);
       expect(onDeselect).toHaveBeenCalled();
       expect(onRefresh).toHaveBeenCalled();
     });
   });
 
   it("shows Delete permanently (not Move to trash) for trashed notes", async () => {
-    vi.mocked(api.getNote).mockResolvedValue(makeNote({ id: 7, trashed: true, in_inbox: false }));
+    vi.mocked(api.getNote).mockResolvedValue(makeNote({ id: ID7, trashed: true, in_inbox: false }));
 
     render(<NoteDetail {...defaultProps} />);
 
@@ -123,7 +131,7 @@ describe("NoteDetail", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     const onDeselect = vi.fn();
     const onRefresh = vi.fn();
-    vi.mocked(api.getNote).mockResolvedValue(makeNote({ id: 7, trashed: true, in_inbox: false }));
+    vi.mocked(api.getNote).mockResolvedValue(makeNote({ id: ID7, trashed: true, in_inbox: false }));
 
     render(<NoteDetail {...defaultProps} onDeselect={onDeselect} onRefresh={onRefresh} />);
 
@@ -132,7 +140,7 @@ describe("NoteDetail", () => {
     await userEvent.click(screen.getByText("Delete permanently"));
 
     await waitFor(() => {
-      expect(api.deleteNote).toHaveBeenCalledWith(7);
+      expect(api.deleteNote).toHaveBeenCalledWith(ID7);
       expect(onDeselect).toHaveBeenCalled();
       expect(onRefresh).toHaveBeenCalled();
     });
@@ -140,7 +148,7 @@ describe("NoteDetail", () => {
 
   it("does not call deleteNote when Delete permanently is cancelled", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(false);
-    vi.mocked(api.getNote).mockResolvedValue(makeNote({ id: 7, trashed: true, in_inbox: false }));
+    vi.mocked(api.getNote).mockResolvedValue(makeNote({ id: ID7, trashed: true, in_inbox: false }));
 
     render(<NoteDetail {...defaultProps} />);
 
@@ -152,7 +160,7 @@ describe("NoteDetail", () => {
   });
 
   it("does not call updateNote on title blur when title is unchanged", async () => {
-    const note = makeNote({ id: 1, title: "Same Title", content: "" });
+    const note = makeNote({ id: ID1, title: "Same Title", content: "" });
     vi.mocked(api.getNote).mockResolvedValue(note);
 
     render(<NoteDetail {...defaultProps} />);
@@ -165,7 +173,7 @@ describe("NoteDetail", () => {
   });
 
   it("calls updateNote on title blur", async () => {
-    const note = makeNote({ id: 1, title: "Original", content: "" });
+    const note = makeNote({ id: ID1, title: "Original", content: "" });
     vi.mocked(api.getNote).mockResolvedValue(note);
 
     render(<NoteDetail {...defaultProps} />);
@@ -176,7 +184,7 @@ describe("NoteDetail", () => {
     await userEvent.tab();
 
     await waitFor(() => {
-      expect(api.updateNote).toHaveBeenCalledWith(1, "Updated", "", []);
+      expect(api.updateNote).toHaveBeenCalledWith(ID1, "Updated", "", []);
     });
   });
 
@@ -195,13 +203,13 @@ describe("NoteDetail", () => {
   it("navigates to backlink note when it is clicked", async () => {
     const onNavigate = vi.fn();
     vi.mocked(api.getNote).mockResolvedValue(makeNote());
-    vi.mocked(api.getBacklinks).mockResolvedValue([makeNote({ id: 99, title: "Source Note" })]);
+    vi.mocked(api.getBacklinks).mockResolvedValue([makeNote({ id: ID99, title: "Source Note" })]);
 
     render(<NoteDetail {...defaultProps} onNavigate={onNavigate} />);
 
     await waitFor(() => screen.getByText("Source Note"));
     await userEvent.click(screen.getByText("Source Note"));
 
-    expect(onNavigate).toHaveBeenCalledWith(99);
+    expect(onNavigate).toHaveBeenCalledWith(ID99);
   });
 });

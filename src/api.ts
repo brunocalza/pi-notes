@@ -3,7 +3,7 @@ import { AttachmentMeta, Note, TagEntry } from "./types";
 
 export interface Cursor {
   ts: number;
-  id: number;
+  rowid: number;
 }
 
 export const api = {
@@ -13,21 +13,21 @@ export const api = {
     invoke<Note[]>("list_notes_cursor", {
       limit,
       cursorTs: cursor?.ts ?? null,
-      cursorId: cursor?.id ?? null,
+      cursorRowid: cursor?.rowid ?? null,
     }),
 
   getInboxCursor: (limit: number, cursor: Cursor | null) =>
     invoke<Note[]>("get_inbox_cursor", {
       limit,
       cursorTs: cursor?.ts ?? null,
-      cursorId: cursor?.id ?? null,
+      cursorRowid: cursor?.rowid ?? null,
     }),
 
   getTrashCursor: (limit: number, cursor: Cursor | null) =>
     invoke<Note[]>("get_trash_cursor", {
       limit,
       cursorTs: cursor?.ts ?? null,
-      cursorId: cursor?.id ?? null,
+      cursorRowid: cursor?.rowid ?? null,
     }),
 
   getNotesByTagCursor: (tag: string, limit: number, cursor: Cursor | null) =>
@@ -35,7 +35,7 @@ export const api = {
       tag,
       limit,
       cursorTs: cursor?.ts ?? null,
-      cursorId: cursor?.id ?? null,
+      cursorRowid: cursor?.rowid ?? null,
     }),
 
   searchNotesCursor: (query: string, limit: number, cursor: Cursor | null) =>
@@ -43,7 +43,7 @@ export const api = {
       query,
       limit,
       cursorTs: cursor?.ts ?? null,
-      cursorId: cursor?.id ?? null,
+      cursorRowid: cursor?.rowid ?? null,
     }),
 
   getRecentNotes: () => invoke<Note[]>("get_recent_notes"),
@@ -59,22 +59,22 @@ export const api = {
   getAllTags: () => invoke<TagEntry[]>("get_all_tags"),
 
   insertNote: (title: string, content: string, tags: string[]) =>
-    invoke<number>("insert_note", { title, content, tags }),
+    invoke<string>("insert_note", { title, content, tags }),
 
-  getNote: (id: number) => invoke<Note | null>("get_note", { id }),
+  getNote: (id: string) => invoke<Note | null>("get_note", { id }),
 
-  updateNote: (id: number, title: string, content: string, tags: string[]) =>
+  updateNote: (id: string, title: string, content: string, tags: string[]) =>
     invoke<void>("update_note", { id, title, content, tags }),
 
-  acceptNote: (id: number) => invoke<void>("accept_note", { id }),
+  acceptNote: (id: string) => invoke<void>("accept_note", { id }),
 
-  moveToInbox: (id: number) => invoke<void>("move_to_inbox", { id }),
+  moveToInbox: (id: string) => invoke<void>("move_to_inbox", { id }),
 
-  trashNote: (id: number) => invoke<void>("trash_note", { id }),
+  trashNote: (id: string) => invoke<void>("trash_note", { id }),
 
-  deleteNote: (id: number) => invoke<void>("delete_note", { id }),
+  deleteNote: (id: string) => invoke<void>("delete_note", { id }),
 
-  getBacklinks: (id: number) => invoke<Note[]>("get_backlinks", { id }),
+  getBacklinks: (id: string) => invoke<Note[]>("get_backlinks", { id }),
 
   getAllNoteTitles: () => invoke<string[]>("get_all_note_titles"),
 
@@ -90,19 +90,19 @@ export const api = {
 
   setDbPathSetting: (path: string) => invoke<void>("set_db_path_setting", { path }),
 
-  addAttachment: (noteId: number, filename: string, mimeType: string, data: number[]) =>
-    invoke<number>("add_attachment", { noteId, filename, mimeType, data }),
+  addAttachment: (noteId: string, filename: string, mimeType: string, data: number[]) =>
+    invoke<string>("add_attachment", { noteId, filename, mimeType, data }),
 
-  getAttachments: (noteId: number) => invoke<AttachmentMeta[]>("get_attachments", { noteId }),
+  getAttachments: (noteId: string) => invoke<AttachmentMeta[]>("get_attachments", { noteId }),
 
-  getAttachmentData: (id: number) => invoke<string>("get_attachment_data", { id }),
+  getAttachmentData: (id: string) => invoke<string>("get_attachment_data", { id }),
 
-  deleteAttachment: (id: number) => invoke<void>("delete_attachment", { id }),
+  deleteAttachment: (id: string) => invoke<void>("delete_attachment", { id }),
 
-  renameAttachment: (id: number, filename: string) =>
+  renameAttachment: (id: string, filename: string) =>
     invoke<void>("rename_attachment", { id, filename }),
 
-  openAttachment: (id: number) => invoke<void>("open_attachment", { id }),
+  openAttachment: (id: string) => invoke<void>("open_attachment", { id }),
 
   openUrl: (url: string) => invoke<void>("open_url", { url }),
 

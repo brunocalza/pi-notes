@@ -40,7 +40,12 @@ describe("EditNotePanel", () => {
 
   it("calls updateNote with correct args and fires onSaved", async () => {
     vi.mocked(api.updateNote).mockResolvedValue(undefined);
-    const note = makeNote({ id: 5, title: "Old Title", content: "Old content", tags: [] });
+    const note = makeNote({
+      id: "00000000-0000-0000-0000-000000000005",
+      title: "Old Title",
+      content: "Old content",
+      tags: [],
+    });
     render(<EditNotePanel note={note} onClose={onClose} onSaved={onSaved} />);
 
     const titleInput = screen.getByDisplayValue("Old Title");
@@ -49,7 +54,12 @@ describe("EditNotePanel", () => {
     await userEvent.click(screen.getByText("Save Changes"));
 
     await waitFor(() => {
-      expect(api.updateNote).toHaveBeenCalledWith(5, "New Title", "Old content", []);
+      expect(api.updateNote).toHaveBeenCalledWith(
+        "00000000-0000-0000-0000-000000000005",
+        "New Title",
+        "Old content",
+        []
+      );
       expect(onSaved).toHaveBeenCalled();
     });
   });

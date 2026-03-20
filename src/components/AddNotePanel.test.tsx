@@ -30,7 +30,7 @@ describe("AddNotePanel", () => {
   });
 
   it("calls insertNote and onSaved when title is provided", async () => {
-    vi.mocked(api.insertNote).mockResolvedValue(1);
+    vi.mocked(api.insertNote).mockResolvedValue("00000000-0000-0000-0000-000000000001");
 
     render(<AddNotePanel onClose={onClose} onSaved={onSaved} />);
 

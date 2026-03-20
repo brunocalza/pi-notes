@@ -130,7 +130,7 @@ function getDateCommand(text: string, cursor: number): boolean {
 interface Props {
   content: string;
   onCommit: (content: string) => void;
-  onNavigate: (id: number) => void;
+  onNavigate: (id: string) => void;
   onDateSelect?: (date: string) => void;
   attachments?: AttachmentMeta[];
 }

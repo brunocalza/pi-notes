@@ -9,7 +9,7 @@ export default function App() {
   const [view, setView] = useState<View>("all");
   const [tags, setTags] = useState<TagEntry[]>([]);
   const [inboxCount, setInboxCount] = useState(0);
-  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [focusNewNote, setFocusNewNote] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocusTrigger, setSearchFocusTrigger] = useState(0);
