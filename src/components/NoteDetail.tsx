@@ -16,9 +16,9 @@ import BlockEditor from "./BlockEditor";
 import { validateTag } from "../tags";
 
 interface Props {
-  noteId: number;
+  noteId: string;
   focusTitle?: boolean;
-  onNavigate: (id: number) => void;
+  onNavigate: (id: string) => void;
   onTagClick: (tag: string) => void;
   onDateSelect?: (date: string) => void;
   onDeselect: () => void;
@@ -37,7 +37,7 @@ export default function NoteDetail({
   const [note, setNote] = useState<Note | null>(null);
   const [backlinks, setBacklinks] = useState<Note[]>([]);
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
-  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -186,7 +186,7 @@ export default function NoteDetail({
     }
   };
 
-  const handleRenameAttachment = async (id: number, newFilename: string) => {
+  const handleRenameAttachment = async (id: string, newFilename: string) => {
     const trimmed = newFilename.trim();
     const old = attachments.find((a) => a.id === id);
     setRenamingId(null);
@@ -209,7 +209,7 @@ export default function NoteDetail({
     }
   };
 
-  const handleDeleteAttachment = async (id: number) => {
+  const handleDeleteAttachment = async (id: string) => {
     try {
       await api.deleteAttachment(id);
       setAttachments((prev) => prev.filter((a) => a.id !== id));

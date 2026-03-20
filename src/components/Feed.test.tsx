@@ -56,7 +56,7 @@ describe("Feed", () => {
   });
 
   it("renders a list of notes", async () => {
-    const notes = [makeNote({ id: 1, title: "First" }), makeNote({ id: 2, title: "Second" })];
+    const notes = [makeNote({ id: "00000000-0000-0000-0000-000000000001", title: "First" }), makeNote({ id: "00000000-0000-0000-0000-000000000002", title: "Second" })];
     vi.mocked(api.listNotesCursor).mockResolvedValue(notes);
     render(<Feed {...defaultProps} />);
     await waitFor(() => {
@@ -81,7 +81,7 @@ describe("Feed", () => {
   });
 
   it("shows Empty Trash button in trash view when there are notes", async () => {
-    const notes = [makeNote({ id: 1, title: "Old Note" })];
+    const notes = [makeNote({ id: "00000000-0000-0000-0000-000000000001", title: "Old Note" })];
     vi.mocked(api.getTrashCursor).mockResolvedValue(notes);
     render(<Feed {...defaultProps} view="trash" />);
     await waitFor(() => {
@@ -99,7 +99,7 @@ describe("Feed", () => {
   it("calls onEmptyTrash when Empty Trash is clicked", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     const onEmptyTrash = vi.fn();
-    const notes = [makeNote({ id: 1, title: "Old Note" })];
+    const notes = [makeNote({ id: "00000000-0000-0000-0000-000000000001", title: "Old Note" })];
     vi.mocked(api.getTrashCursor).mockResolvedValue(notes);
     render(<Feed {...defaultProps} view="trash" onEmptyTrash={onEmptyTrash} />);
     await waitFor(() => {
@@ -125,14 +125,14 @@ describe("Feed", () => {
 
   it("calls onSelectNote when a note is clicked", async () => {
     const onSelectNote = vi.fn();
-    const notes = [makeNote({ id: 42, title: "Click Me" })];
+    const notes = [makeNote({ id: "00000000-0000-0000-0000-000000000042", title: "Click Me" })];
     vi.mocked(api.listNotesCursor).mockResolvedValue(notes);
     render(<Feed {...defaultProps} onSelectNote={onSelectNote} />);
     await waitFor(() => {
       expect(screen.getByText("Click Me")).toBeInTheDocument();
     });
     await userEvent.click(screen.getByText("Click Me"));
-    expect(onSelectNote).toHaveBeenCalledWith(42);
+    expect(onSelectNote).toHaveBeenCalledWith("00000000-0000-0000-0000-000000000042");
   });
 
   it("shows view title based on current view", async () => {
@@ -152,7 +152,7 @@ describe("Feed", () => {
   });
 
   it("calls getNotesByDate when in date view", async () => {
-    const notes = [makeNote({ id: 1, title: "Date Note" })];
+    const notes = [makeNote({ id: "00000000-0000-0000-0000-000000000001", title: "Date Note" })];
     vi.mocked(api.getNotesByDate).mockResolvedValue(notes);
     render(<Feed {...defaultProps} view={{ date: "2026-03-15" }} />);
     await waitFor(() => {

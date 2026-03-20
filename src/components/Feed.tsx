@@ -9,11 +9,11 @@ const PAGE_SIZE = 50;
 interface Props {
   view: View;
   searchQuery: string;
-  selectedNoteId: number | null;
+  selectedNoteId: string | null;
   searchFocusTrigger: number;
   refreshKey: number;
   onSearchChange: (q: string) => void;
-  onSelectNote: (id: number) => void;
+  onSelectNote: (id: string) => void;
   onTagClick: (tag: string) => void;
   onAddNote: () => void;
   onEmptyTrash: () => void;
@@ -37,7 +37,7 @@ function viewTitle(view: View): string {
 }
 
 function toCursor(note: Note): Cursor {
-  return { ts: new Date(note.updated_at).getTime(), id: note.id };
+  return { ts: new Date(note.updated_at).getTime(), rowid: note.rowid };
 }
 
 async function fetchPage(view: View, searchQuery: string, cursor: Cursor | null): Promise<Note[]> {

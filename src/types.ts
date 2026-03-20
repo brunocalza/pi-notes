@@ -1,19 +1,20 @@
 export interface Note {
-  id: number;
+  id: string;
+  rowid: number;
   title: string;
   content: string;
   created_at: string; // ISO string from chrono serde
   updated_at: string;
   in_inbox: boolean;
   trashed: boolean;
-  linked_note_id: number | null;
+  linked_note_id: string | null;
   image_path: string | null;
   tags: string[];
 }
 
 export interface AttachmentMeta {
-  id: number;
-  note_id: number;
+  id: string;
+  note_id: string;
   filename: string;
   mime_type: string;
   size: number;
