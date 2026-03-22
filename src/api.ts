@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { AttachmentMeta, Note, TagEntry } from "./types";
+import { AttachmentMeta, Collection, Note, TagEntry } from "./types";
 
 export interface Cursor {
   ts: number;
@@ -110,4 +110,24 @@ export const api = {
 
   getDaysWithNotesInMonth: (yearMonth: string) =>
     invoke<number[]>("get_days_with_notes_in_month", { yearMonth }),
+
+  listCollections: () => invoke<Collection[]>("list_collections"),
+
+  createCollection: (name: string) => invoke<string>("create_collection", { name }),
+
+  renameCollection: (id: string, newName: string) =>
+    invoke<void>("rename_collection", { id, newName }),
+
+  deleteCollection: (id: string) => invoke<void>("delete_collection", { id }),
+
+  setNoteCollection: (noteId: string, collectionId: string | null) =>
+    invoke<void>("set_note_collection", { noteId, collectionId }),
+
+  getNotesByCollectionCursor: (collectionId: string, limit: number, cursor: Cursor | null) =>
+    invoke<Note[]>("get_notes_by_collection_cursor", {
+      collectionId,
+      limit,
+      cursorTs: cursor?.ts ?? null,
+      cursorRowid: cursor?.rowid ?? null,
+    }),
 };

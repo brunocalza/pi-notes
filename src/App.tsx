@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Note, TagEntry, View, ColorTheme } from "./types";
+import { Collection, Note, TagEntry, View, ColorTheme } from "./types";
 import { api } from "./api";
 import Sidebar from "./components/Sidebar";
 import Feed from "./components/Feed";
@@ -8,6 +8,7 @@ import NoteDetail from "./components/NoteDetail";
 export default function App() {
   const [view, setView] = useState<View>("all");
   const [tags, setTags] = useState<TagEntry[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
   const [inboxCount, setInboxCount] = useState(0);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [focusNewNote, setFocusNewNote] = useState(false);
@@ -35,9 +36,14 @@ export default function App() {
 
   const loadSidebar = useCallback(async () => {
     try {
-      const [allTags, inbox] = await Promise.all([api.getAllTags(), api.getInbox()]);
+      const [allTags, inbox, allCollections] = await Promise.all([
+        api.getAllTags(),
+        api.getInbox(),
+        api.listCollections(),
+      ]);
       setTags(allTags);
       setInboxCount(inbox.length);
+      setCollections(allCollections);
     } catch (e) {
       console.error("Failed to load sidebar:", e);
     }
@@ -55,6 +61,9 @@ export default function App() {
   const handleAddNote = useCallback(async () => {
     try {
       const id = await api.insertNote("New note", "", []);
+      if (typeof view === "object" && "collection" in view) {
+        await api.setNoteCollection(id, view.collection);
+      }
       setView("inbox");
       setSearchQuery("");
       setFeedRefreshKey((k) => k + 1);
@@ -64,7 +73,7 @@ export default function App() {
     } catch (e) {
       console.error("Failed to create note:", e);
     }
-  }, [loadSidebar]);
+  }, [loadSidebar, view]);
 
   // Stale-closure-safe refs for global shortcuts — notes updated via onNotesChange
   const stateRef = useRef({ selectedNoteId, notes: [] as Note[], view });
@@ -166,6 +175,7 @@ export default function App() {
       <Sidebar
         view={view}
         tags={tags}
+        collections={collections}
         inboxCount={inboxCount}
         theme={theme}
         colorTheme={colorTheme}
@@ -173,6 +183,22 @@ export default function App() {
         onViewChange={handleViewChange}
         onTagRename={refresh}
         onTagDelete={refresh}
+        onCollectionClick={(id) => handleViewChange({ collection: id })}
+        onCreateCollection={async (name) => {
+          await api.createCollection(name);
+          loadSidebar();
+        }}
+        onRenameCollection={async (id, newName) => {
+          await api.renameCollection(id, newName);
+          loadSidebar();
+        }}
+        onDeleteCollection={async (id) => {
+          await api.deleteCollection(id);
+          if (typeof view === "object" && "collection" in view && view.collection === id) {
+            handleViewChange("all");
+          }
+          loadSidebar();
+        }}
         onThemeToggle={toggleTheme}
         onColorThemeChange={setColorTheme}
         onDbPathChange={refresh}
@@ -180,6 +206,7 @@ export default function App() {
 
       <Feed
         view={view}
+        collections={collections}
         searchQuery={searchQuery}
         selectedNoteId={selectedNoteId}
         searchFocusTrigger={searchFocusTrigger}
@@ -203,6 +230,7 @@ export default function App() {
           key={selectedNoteId}
           noteId={selectedNoteId}
           focusTitle={focusNewNote}
+          collections={collections}
           onNavigate={(id) => {
             setFocusNewNote(false);
             setSelectedNoteId(id);

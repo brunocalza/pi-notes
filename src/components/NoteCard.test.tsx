@@ -66,4 +66,22 @@ describe("NoteCard", () => {
     await userEvent.click(screen.getByText("#react"));
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  it("shows collection badge when collectionName is provided", () => {
+    render(
+      <NoteCard
+        note={makeNote()}
+        selected={false}
+        collectionName="Work"
+        onClick={vi.fn()}
+        onTagClick={vi.fn()}
+      />
+    );
+    expect(screen.getByText("Work")).toBeInTheDocument();
+  });
+
+  it("does not show collection badge when collectionName is not provided", () => {
+    render(<NoteCard note={makeNote()} selected={false} onClick={vi.fn()} onTagClick={vi.fn()} />);
+    expect(screen.queryByText("Work")).not.toBeInTheDocument();
+  });
 });

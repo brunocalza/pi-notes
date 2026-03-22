@@ -17,6 +17,7 @@ vi.mock("../api", () => ({
     moveToInbox: vi.fn().mockResolvedValue(undefined),
     getAllNoteTitles: vi.fn().mockResolvedValue([]),
     getAttachments: vi.fn().mockResolvedValue([]),
+    setNoteCollection: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -198,6 +199,41 @@ describe("NoteDetail", () => {
     await userEvent.click(screen.getByText("#react"));
 
     expect(onTagClick).toHaveBeenCalledWith("react");
+  });
+
+  it("shows collection badge when note has a collection", async () => {
+    const collections = [
+      { id: "col-1", name: "Work", note_count: 1, created_at: "", updated_at: "" },
+    ];
+    vi.mocked(api.getNote).mockResolvedValue(makeNote({ collection_id: "col-1" }));
+
+    render(<NoteDetail {...defaultProps} collections={collections} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Work")).toBeInTheDocument();
+    });
+  });
+
+  it("calls setNoteCollection when moving note to a collection", async () => {
+    const onRefresh = vi.fn();
+    const collections = [
+      { id: "col-1", name: "Work", note_count: 1, created_at: "", updated_at: "" },
+    ];
+    vi.mocked(api.getNote).mockResolvedValue(makeNote({ id: ID1, in_inbox: false }));
+
+    render(
+      <NoteDetail {...defaultProps} noteId={ID1} collections={collections} onRefresh={onRefresh} />
+    );
+
+    await waitFor(() => screen.getByTitle("Note actions"));
+    await userEvent.click(screen.getByTitle("Note actions"));
+    await userEvent.click(screen.getByText("Move to collection"));
+    await userEvent.click(screen.getByText("Work"));
+
+    await waitFor(() => {
+      expect(api.setNoteCollection).toHaveBeenCalledWith(ID1, "col-1");
+      expect(onRefresh).toHaveBeenCalled();
+    });
   });
 
   it("navigates to backlink note when it is clicked", async () => {

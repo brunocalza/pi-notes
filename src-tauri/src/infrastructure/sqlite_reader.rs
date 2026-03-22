@@ -4,10 +4,14 @@ use std::sync::{Arc, Mutex};
 
 use crate::application::{
     ports::note_reader::NoteReader,
-    queries::note::{GetNotesByDate, GetNotesByTag, ListInbox, ListNotes, ListTrash, SearchNotes},
+    queries::note::{
+        GetNotesByCollection, GetNotesByDate, GetNotesByTag, ListInbox, ListNotes, ListTrash,
+        SearchNotes,
+    },
 };
 use crate::domain::{
     attachment::{AttachmentId, AttachmentMeta},
+    collection::CollectionId,
     error::DomainError,
     note::{Note, NoteId},
     tag::Tag,
@@ -32,11 +36,12 @@ fn ms_to_dt(ms: i64) -> DateTime<Utc> {
 }
 
 // Columns: 0=id 1=rowid 2=title 3=content 4=created_at 5=updated_at
-//          6=in_inbox 7=linked_note_id 8=image_path 9=trashed 10=tags
+//          6=in_inbox 7=linked_note_id 8=image_path 9=trashed 10=tags 11=collection_id
 const SELECT: &str = "
     SELECT n.id, n.rowid, n.title, n.content, n.created_at, n.updated_at,
            n.in_inbox, n.linked_note_id, n.image_path, n.trashed,
-           GROUP_CONCAT(t.tag, ',') as tags
+           GROUP_CONCAT(t.tag, ',') as tags,
+           n.collection_id
     FROM notes n
     LEFT JOIN note_tags t ON t.note_id = n.id";
 
@@ -58,6 +63,7 @@ fn row_to_note(row: &rusqlite::Row<'_>) -> rusqlite::Result<Note> {
         linked_note_id: row.get::<_, Option<String>>(7)?.map(NoteId),
         image_path: row.get(8)?,
         tags,
+        collection_id: row.get::<_, Option<String>>(11)?.map(CollectionId),
     })
 }
 
@@ -271,6 +277,45 @@ impl NoteReader for SqliteNoteReader {
                 conn.prepare(&sql)
                     .map_err(map_err)?
                     .query_map(params![tag, q.limit], row_to_note)
+                    .map_err(map_err)?
+                    .collect::<rusqlite::Result<_>>()
+                    .map_err(map_err)?
+            }
+        };
+        Ok(rows)
+    }
+
+    fn get_notes_by_collection(&self, q: GetNotesByCollection) -> Result<Vec<Note>, DomainError> {
+        let conn = self.conn.lock().map_err(map_err)?;
+        let rows = match q.cursor {
+            Some(c) => {
+                let sql = format!(
+                    "{SELECT}
+                     WHERE n.trashed = 0
+                       AND n.collection_id = ?1
+                       AND (n.updated_at < ?3 OR (n.updated_at = ?3 AND n.rowid < ?4))
+                     GROUP BY n.id ORDER BY n.updated_at DESC, n.rowid DESC LIMIT ?2"
+                );
+                conn.prepare(&sql)
+                    .map_err(map_err)?
+                    .query_map(
+                        params![q.collection_id, q.limit, c.ts, c.rowid],
+                        row_to_note,
+                    )
+                    .map_err(map_err)?
+                    .collect::<rusqlite::Result<_>>()
+                    .map_err(map_err)?
+            }
+            None => {
+                let sql = format!(
+                    "{SELECT}
+                     WHERE n.trashed = 0
+                       AND n.collection_id = ?1
+                     GROUP BY n.id ORDER BY n.updated_at DESC, n.rowid DESC LIMIT ?2"
+                );
+                conn.prepare(&sql)
+                    .map_err(map_err)?
+                    .query_map(params![q.collection_id, q.limit], row_to_note)
                     .map_err(map_err)?
                     .collect::<rusqlite::Result<_>>()
                     .map_err(map_err)?

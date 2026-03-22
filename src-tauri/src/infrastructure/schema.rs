@@ -79,6 +79,8 @@ pub fn apply_schema(conn: &Connection) -> Result<()> {
     create_tables_and_fts(conn)?;
     // Migrate INTEGER primary keys → UUID strings (idempotent)
     migrate_ids_to_uuid(conn)?;
+    // Add collections support (idempotent)
+    add_collection_support_if_needed(conn)?;
     Ok(())
 }
 
@@ -428,6 +430,39 @@ fn add_legacy_columns_if_needed(conn: &Connection) -> Result<()> {
             created_at  INTEGER NOT NULL
         );",
     )?;
+
+    Ok(())
+}
+
+fn add_collection_support_if_needed(conn: &Connection) -> Result<()> {
+    // Create collections table
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS collections (
+            id         TEXT    PRIMARY KEY,
+            name       TEXT    NOT NULL UNIQUE,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );",
+    )?;
+
+    // Add collection_id column to notes if missing
+    let has_col: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('notes') WHERE name = 'collection_id'",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .map(|n| n > 0)
+        .unwrap_or(false);
+
+    if !has_col {
+        conn.execute_batch(
+            "ALTER TABLE notes ADD COLUMN collection_id TEXT REFERENCES collections(id) ON DELETE SET NULL;",
+        )?;
+    }
+
+    // Add index
+    conn.execute_batch("CREATE INDEX IF NOT EXISTS idx_notes_collection ON notes(collection_id);")?;
 
     Ok(())
 }

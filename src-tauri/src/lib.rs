@@ -7,7 +7,8 @@ use std::sync::{Arc, Mutex};
 
 use application::service::AppService;
 use infrastructure::{
-    attachment_repository::SqliteAttachmentRepository, note_repository::SqliteNoteRepository,
+    attachment_repository::SqliteAttachmentRepository,
+    collection_repository::SqliteCollectionRepository, note_repository::SqliteNoteRepository,
     schema, sqlite_reader::SqliteNoteReader, tag_repository::SqliteTagRepository,
 };
 use ipc::{commands::*, state::AppState};
@@ -25,7 +26,16 @@ pub fn run() {
     let tags = Arc::new(SqliteTagRepository::new(write_conn.clone()));
     let attachments = Arc::new(SqliteAttachmentRepository::new(write_conn.clone()));
     let reader = Arc::new(SqliteNoteReader::new(read_conn.clone()));
-    let service = Arc::new(AppService::new(notes, tags, attachments, reader));
+    let collections = Arc::new(SqliteCollectionRepository::new(write_conn.clone()));
+    let collection_reader = Arc::new(SqliteCollectionRepository::new(read_conn.clone()));
+    let service = Arc::new(AppService::new(
+        notes,
+        tags,
+        attachments,
+        reader,
+        collections,
+        collection_reader,
+    ));
 
     tauri::Builder::default()
         .manage(AppState {
@@ -79,6 +89,12 @@ pub fn run() {
             open_url,
             get_notes_by_date,
             get_days_with_notes_in_month,
+            list_collections,
+            create_collection,
+            rename_collection,
+            delete_collection,
+            set_note_collection,
+            get_notes_by_collection_cursor,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

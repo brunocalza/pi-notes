@@ -1,4 +1,5 @@
 pub mod attachment_repository;
+pub mod collection_repository;
 pub mod note_repository;
 pub mod schema;
 pub mod sqlite_reader;

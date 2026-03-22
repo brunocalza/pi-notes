@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import Sidebar from "./Sidebar";
 import { api } from "../api";
+import { Collection } from "../types";
 
 vi.mock("../api", () => ({
   api: {
@@ -10,12 +11,25 @@ vi.mock("../api", () => ({
     deleteTag: vi.fn(),
     getDbPathSetting: vi.fn().mockResolvedValue("/home/user/.local/share/pi-notes/notes.db"),
     getDaysWithNotesInMonth: vi.fn().mockResolvedValue([]),
+    createCollection: vi.fn(),
+    renameCollection: vi.fn(),
+    deleteCollection: vi.fn(),
   },
 }));
+
+const makeCollection = (overrides: Partial<Collection> = {}): Collection => ({
+  id: "col-1",
+  name: "Work",
+  note_count: 3,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  ...overrides,
+});
 
 const defaultProps = {
   view: "all" as const,
   tags: [] as [string, number][],
+  collections: [] as Collection[],
   inboxCount: 0,
   theme: "dark" as const,
   colorTheme: "graphite" as const,
@@ -23,6 +37,10 @@ const defaultProps = {
   onViewChange: vi.fn(),
   onTagRename: vi.fn(),
   onTagDelete: vi.fn(),
+  onCollectionClick: vi.fn(),
+  onCreateCollection: vi.fn().mockResolvedValue(undefined),
+  onRenameCollection: vi.fn().mockResolvedValue(undefined),
+  onDeleteCollection: vi.fn(),
   onThemeToggle: vi.fn(),
   onColorThemeChange: vi.fn(),
   onDbPathChange: vi.fn(),
@@ -124,6 +142,108 @@ describe("Sidebar", () => {
   });
 });
 
+describe("Sidebar collections", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("renders collection list", () => {
+    const collections = [
+      makeCollection({ id: "col-1", name: "Work", note_count: 2 }),
+      makeCollection({ id: "col-2", name: "Personal", note_count: 0 }),
+    ];
+    render(<Sidebar {...defaultProps} collections={collections} />);
+    expect(screen.getByText("Work")).toBeInTheDocument();
+    expect(screen.getByText("Personal")).toBeInTheDocument();
+  });
+
+  it("shows note count for each collection", () => {
+    const collections = [makeCollection({ id: "col-1", name: "Work", note_count: 42 })];
+    render(<Sidebar {...defaultProps} collections={collections} />);
+    expect(screen.getByText("42")).toBeInTheDocument();
+  });
+
+  it("calls onCollectionClick when a collection is clicked", async () => {
+    const onCollectionClick = vi.fn();
+    const collections = [makeCollection({ id: "col-1", name: "Work" })];
+    render(
+      <Sidebar {...defaultProps} collections={collections} onCollectionClick={onCollectionClick} />
+    );
+
+    await userEvent.click(screen.getByText("Work"));
+    expect(onCollectionClick).toHaveBeenCalledWith("col-1");
+  });
+
+  it("shows empty state when there are no collections", () => {
+    render(<Sidebar {...defaultProps} collections={[]} />);
+    expect(screen.getByText("No collections yet")).toBeInTheDocument();
+  });
+
+  it("calls onCreateCollection when a new collection name is submitted", async () => {
+    const onCreateCollection = vi.fn().mockResolvedValue(undefined);
+    render(<Sidebar {...defaultProps} onCreateCollection={onCreateCollection} />);
+
+    await userEvent.click(screen.getByTitle("New collection"));
+    await userEvent.type(screen.getByPlaceholderText("Collection name..."), "Research{Enter}");
+
+    await waitFor(() => {
+      expect(onCreateCollection).toHaveBeenCalledWith("Research");
+    });
+  });
+
+  it("shows inline error when collection name is duplicate", async () => {
+    const onCreateCollection = vi
+      .fn()
+      .mockRejectedValue('A collection named "Research" already exists');
+    render(<Sidebar {...defaultProps} onCreateCollection={onCreateCollection} />);
+
+    await userEvent.click(screen.getByTitle("New collection"));
+    await userEvent.type(screen.getByPlaceholderText("Collection name..."), "Research{Enter}");
+
+    await waitFor(() => {
+      expect(screen.getByText('A collection named "Research" already exists')).toBeInTheDocument();
+    });
+  });
+
+  it("calls onRenameCollection when renaming a collection", async () => {
+    const onRenameCollection = vi.fn().mockResolvedValue(undefined);
+    const collections = [makeCollection({ id: "col-1", name: "Work" })];
+    render(
+      <Sidebar
+        {...defaultProps}
+        collections={collections}
+        onRenameCollection={onRenameCollection}
+      />
+    );
+
+    await userEvent.hover(screen.getByText("Work"));
+    await userEvent.click(screen.getByTitle("Rename collection"));
+
+    const input = screen.getByDisplayValue("Work");
+    await userEvent.clear(input);
+    await userEvent.type(input, "Projects{Enter}");
+
+    await waitFor(() => {
+      expect(onRenameCollection).toHaveBeenCalledWith("col-1", "Projects");
+    });
+  });
+
+  it("calls onDeleteCollection when deleting a collection", async () => {
+    const onDeleteCollection = vi.fn();
+    const collections = [makeCollection({ id: "col-1", name: "Work" })];
+    render(
+      <Sidebar
+        {...defaultProps}
+        collections={collections}
+        onDeleteCollection={onDeleteCollection}
+      />
+    );
+
+    await userEvent.hover(screen.getByText("Work"));
+    await userEvent.click(screen.getByTitle("Delete collection"));
+
+    expect(onDeleteCollection).toHaveBeenCalledWith("col-1");
+  });
+});
+
 describe("Sidebar calendar", () => {
   const MONTHS = [
     "January",
@@ -183,9 +303,7 @@ describe("Sidebar calendar", () => {
     render(<Sidebar {...defaultProps} />);
     await waitFor(() => expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(1));
 
-    // buttons[0]=today, buttons[1]=prev, buttons[2]=next, then day cells
-    const buttons = screen.getAllByRole("button");
-    await userEvent.click(buttons[2]);
+    await userEvent.click(screen.getByTitle("Next month"));
 
     const nextMonth = (now.getMonth() + 1) % 12;
     const nextYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
@@ -200,9 +318,7 @@ describe("Sidebar calendar", () => {
     render(<Sidebar {...defaultProps} />);
     await waitFor(() => expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(1));
 
-    // buttons[0]=today, buttons[1]=prev, buttons[2]=next, then day cells
-    const buttons = screen.getAllByRole("button");
-    await userEvent.click(buttons[1]);
+    await userEvent.click(screen.getByTitle("Previous month"));
 
     const prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
     const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();

@@ -33,3 +33,9 @@ pub struct GetNotesByTag {
 pub struct GetNotesByDate {
     pub date: String,
 }
+
+pub struct GetNotesByCollection {
+    pub collection_id: String,
+    pub limit: i64,
+    pub cursor: Option<Cursor>,
+}

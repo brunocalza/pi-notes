@@ -1,5 +1,6 @@
 use crate::application::queries::note::{
-    GetNotesByDate, GetNotesByTag, ListInbox, ListNotes, ListTrash, SearchNotes,
+    GetNotesByCollection, GetNotesByDate, GetNotesByTag, ListInbox, ListNotes, ListTrash,
+    SearchNotes,
 };
 use crate::domain::{
     attachment::{AttachmentId, AttachmentMeta},
@@ -16,6 +17,7 @@ pub trait NoteReader: Send + Sync {
     fn search_notes(&self, q: SearchNotes) -> Result<Vec<Note>, DomainError>;
     fn get_notes_by_tag(&self, q: GetNotesByTag) -> Result<Vec<Note>, DomainError>;
     fn get_notes_by_date(&self, q: GetNotesByDate) -> Result<Vec<Note>, DomainError>;
+    fn get_notes_by_collection(&self, q: GetNotesByCollection) -> Result<Vec<Note>, DomainError>;
     fn get_backlinks(&self, id: NoteId) -> Result<Vec<Note>, DomainError>;
     fn get_recent_notes(&self) -> Result<Vec<Note>, DomainError>;
     fn get_all_tags(&self) -> Result<Vec<(String, i64)>, DomainError>;
