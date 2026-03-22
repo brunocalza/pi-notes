@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from "react";
 import { Plus, Search, Trash2 } from "lucide-react";
-import { Note, View } from "../types";
+import { Collection, Note, View } from "../types";
 import { api, Cursor } from "../api";
 import NoteCard from "./NoteCard";
 
@@ -8,6 +8,7 @@ const PAGE_SIZE = 50;
 
 interface Props {
   view: View;
+  collections: Collection[];
   searchQuery: string;
   selectedNoteId: string | null;
   searchFocusTrigger: number;
@@ -20,7 +21,7 @@ interface Props {
   onNotesChange: (notes: Note[]) => void;
 }
 
-function viewTitle(view: View): string {
+function viewTitle(view: View, collections: Collection[]): string {
   if (view === "all") return "My Notes";
   if (view === "inbox") return "Inbox";
   if (view === "trash") return "Trash";
@@ -32,6 +33,9 @@ function viewTitle(view: View): string {
       day: "numeric",
       year: "numeric",
     });
+  }
+  if (typeof view === "object" && "collection" in view) {
+    return collections.find((c) => c.id === view.collection)?.name ?? "Collection";
   }
   return "Notes";
 }
@@ -53,11 +57,15 @@ async function fetchPage(view: View, searchQuery: string, cursor: Cursor | null)
   if (typeof view === "object" && "date" in view) {
     return api.getNotesByDate(view.date);
   }
+  if (typeof view === "object" && "collection" in view) {
+    return api.getNotesByCollectionCursor(view.collection, PAGE_SIZE, cursor);
+  }
   return [];
 }
 
 export default function Feed({
   view,
+  collections,
   searchQuery,
   selectedNoteId,
   searchFocusTrigger,
@@ -71,7 +79,10 @@ export default function Feed({
 }: Props) {
   const searchRef = useRef<HTMLInputElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const showSearch = view === "all" || (typeof view === "object" && "tag" in view);
+  const showSearch =
+    view === "all" ||
+    (typeof view === "object" && "tag" in view) ||
+    (typeof view === "object" && "collection" in view);
 
   // State for rendering
   const [notes, setNotes] = useState<Note[]>([]);
@@ -160,7 +171,7 @@ export default function Feed({
       <div className="px-4 pt-4 pb-3 border-b bc-subtle shrink-0">
         <div className="flex items-center justify-between mb-2.5">
           <h2 className="text-xs font-semibold text-lo uppercase tracking-wider">
-            {viewTitle(view)}
+            {viewTitle(view, collections)}
           </h2>
           {view === "trash" ? (
             notes.length > 0 && (
@@ -216,6 +227,11 @@ export default function Feed({
                 key={note.id}
                 note={note}
                 selected={note.id === selectedNoteId}
+                collectionName={
+                  view === "all" && note.collection_id
+                    ? (collections.find((c) => c.id === note.collection_id)?.name ?? undefined)
+                    : undefined
+                }
                 onClick={() => onSelectNote(note.id)}
                 onTagClick={onTagClick}
               />

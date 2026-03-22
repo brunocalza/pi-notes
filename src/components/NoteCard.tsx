@@ -1,8 +1,10 @@
+import { FolderOpen } from "lucide-react";
 import { Note } from "../types";
 
 interface Props {
   note: Note;
   selected: boolean;
+  collectionName?: string;
   onClick: () => void;
   onTagClick: (tag: string) => void;
 }
@@ -35,7 +37,7 @@ function stripMarkdown(text: string): string {
     .trim();
 }
 
-export default function NoteCard({ note, selected, onClick, onTagClick }: Props) {
+export default function NoteCard({ note, selected, collectionName, onClick, onTagClick }: Props) {
   const snippet = stripMarkdown(note.content).slice(0, 120);
 
   return (
@@ -57,10 +59,16 @@ export default function NoteCard({ note, selected, onClick, onTagClick }: Props)
         <span className="text-[10px] text-ghost shrink-0">{formatDate(note.created_at)}</span>
       </div>
 
-      {snippet && <p className="text-xs text-dim leading-relaxed line-clamp-2 mb-2">{snippet}</p>}
+      {snippet && (
+        <p
+          className={`text-xs text-dim leading-relaxed line-clamp-2 ${note.tags.length > 0 || collectionName ? "mb-2" : ""}`}
+        >
+          {snippet}
+        </p>
+      )}
 
-      {note.tags.length > 0 && (
-        <div className="flex gap-1.5 flex-wrap">
+      {(note.tags.length > 0 || collectionName) && (
+        <div className="flex gap-1.5 flex-wrap items-center">
           {note.tags.slice(0, 4).map((tag) => (
             <span
               key={tag}
@@ -75,6 +83,12 @@ export default function NoteCard({ note, selected, onClick, onTagClick }: Props)
           ))}
           {note.tags.length > 4 && (
             <span className="text-[10px] text-ghost">+{note.tags.length - 4}</span>
+          )}
+          {collectionName && (
+            <span className="inline-flex items-center gap-1 border bc-ui rounded-full px-2 py-0.5 text-[10px] text-ghost bg-panel ml-auto">
+              <FolderOpen size={9} className="shrink-0" />
+              {collectionName}
+            </span>
           )}
         </div>
       )}

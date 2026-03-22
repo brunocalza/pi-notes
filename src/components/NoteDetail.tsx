@@ -9,15 +9,17 @@ import {
   Check,
   Undo2,
   MoreHorizontal,
+  FolderOpen,
 } from "lucide-react";
 import { api } from "../api";
-import { Note, AttachmentMeta } from "../types";
+import { Collection, Note, AttachmentMeta } from "../types";
 import BlockEditor from "./BlockEditor";
 import { validateTag } from "../tags";
 
 interface Props {
   noteId: string;
   focusTitle?: boolean;
+  collections?: Collection[];
   onNavigate: (id: string) => void;
   onTagClick: (tag: string) => void;
   onDateSelect?: (date: string) => void;
@@ -28,6 +30,7 @@ interface Props {
 export default function NoteDetail({
   noteId,
   focusTitle,
+  collections = [],
   onNavigate,
   onTagClick,
   onDateSelect,
@@ -48,6 +51,8 @@ export default function NoteDetail({
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
   const [tagActiveIdx, setTagActiveIdx] = useState(0);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [collectionSubmenu, setCollectionSubmenu] = useState(false);
+  const [collectionId, setCollectionId] = useState<string | null>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
   const tagPopoverRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -63,6 +68,7 @@ export default function NoteDetail({
           setNote(n);
           setTitle(n.title);
           setTags(n.tags);
+          setCollectionId(n.collection_id);
         }
       })
       .catch(console.error);
@@ -109,12 +115,25 @@ export default function NoteDetail({
       if (
         !actionsButtonRef.current?.contains(e.target as Node) &&
         !actionsPopoverRef.current?.contains(e.target as Node)
-      )
+      ) {
         setActionsOpen(false);
+        setCollectionSubmenu(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  const assignCollection = async (id: string | null) => {
+    if (!note) return;
+    setCollectionId(id);
+    try {
+      await api.setNoteCollection(note.id, id);
+      onRefresh();
+    } catch (e) {
+      console.error("Failed to assign collection:", e);
+    }
+  };
 
   const save = async (newTitle: string, newContent: string, newTags: string[]) => {
     if (!note) return;
@@ -326,7 +345,55 @@ export default function NoteDetail({
                       Move to inbox
                     </button>
                   )}
-                  {(note.in_inbox || note.trashed) && <div className="border-t bc-ui my-1" />}
+                  {collections.length > 0 && !note.trashed && (
+                    <>
+                      {note.in_inbox && <div className="border-t bc-ui my-1" />}
+                      {collectionSubmenu ? (
+                        <>
+                          <button
+                            onClick={() => setCollectionSubmenu(false)}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-ghost hover:bg-lift transition-colors"
+                          >
+                            ← Back
+                          </button>
+                          <div className="border-t bc-ui my-1" />
+                          <button
+                            onClick={() => {
+                              assignCollection(null);
+                              setActionsOpen(false);
+                            }}
+                            className={`flex items-center gap-2 w-full px-3 py-2 text-xs text-left transition-colors ${collectionId === null ? "text-hi bg-raised" : "text-md hover:bg-lift"}`}
+                          >
+                            None
+                          </button>
+                          {collections.map((c) => (
+                            <button
+                              key={c.id}
+                              onClick={() => {
+                                assignCollection(c.id);
+                                setActionsOpen(false);
+                              }}
+                              className={`flex items-center gap-2 w-full px-3 py-2 text-xs text-left transition-colors ${collectionId === c.id ? "text-hi bg-raised" : "text-md hover:bg-lift"}`}
+                            >
+                              <FolderOpen size={11} />
+                              {c.name}
+                            </button>
+                          ))}
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => setCollectionSubmenu(true)}
+                          className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-md hover:bg-lift transition-colors"
+                        >
+                          <FolderOpen size={12} />
+                          Move to collection
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {(note.in_inbox || note.trashed || collections.length > 0) && (
+                    <div className="border-t bc-ui my-1" />
+                  )}
                   {note.trashed ? (
                     <button
                       onClick={handleDeletePermanently}
@@ -348,6 +415,16 @@ export default function NoteDetail({
               )}
             </div>
           </div>
+
+          {/* Collection badge */}
+          {collectionId && (
+            <div className="flex items-center gap-1.5 mb-4">
+              <span className="inline-flex items-center gap-1.5 bg-lift border bc-ui rounded-full px-3 py-1 text-xs text-dim">
+                <FolderOpen size={11} className="text-ghost shrink-0" />
+                {collections.find((c) => c.id === collectionId)?.name ?? "Collection"}
+              </span>
+            </div>
+          )}
 
           {/* Tags + attachments — single inline row */}
           <div className="flex flex-wrap items-center gap-1.5 mb-5">

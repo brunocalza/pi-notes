@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../api";
-import { X, Tag } from "lucide-react";
-import { Note } from "../types";
+import { X, Tag, FolderOpen } from "lucide-react";
+import { Collection, Note } from "../types";
 import TagInput from "./TagInput";
 import ContentEditor from "./ContentEditor";
 
@@ -9,12 +9,14 @@ interface Props {
   note: Note;
   onClose: () => void;
   onSaved: () => void;
+  collections?: Collection[];
 }
 
-export default function EditNotePanel({ note, onClose, onSaved }: Props) {
+export default function EditNotePanel({ note, onClose, onSaved, collections = [] }: Props) {
   const [title, setTitle] = useState(note.title);
   const [content, setContent] = useState(note.content);
   const [tags, setTags] = useState<string[]>([...note.tags]);
+  const [collectionId, setCollectionId] = useState<string>(note.collection_id ?? "");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -26,6 +28,9 @@ export default function EditNotePanel({ note, onClose, onSaved }: Props) {
     setSaving(true);
     try {
       await api.updateNote(note.id, title.trim(), content, tags);
+      if (collectionId !== (note.collection_id ?? "")) {
+        await api.setNoteCollection(note.id, collectionId || null);
+      }
       onSaved();
     } catch (e) {
       setError(String(e));
@@ -79,6 +84,27 @@ export default function EditNotePanel({ note, onClose, onSaved }: Props) {
               onRemove={(t) => setTags(tags.filter((x) => x !== t))}
             />
           </div>
+
+          {collections.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <FolderOpen size={13} className="text-ghost" />
+                <span className="text-xs text-ghost">Collection</span>
+              </div>
+              <select
+                value={collectionId}
+                onChange={(e) => setCollectionId(e.target.value)}
+                className="w-full bg-field border bc-ui rounded-md px-3 py-2 text-xs text-hi outline-none focus:bc-focus transition-colors"
+              >
+                <option value="">None</option>
+                {collections.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

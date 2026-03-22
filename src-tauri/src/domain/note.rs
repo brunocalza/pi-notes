@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::domain::collection::CollectionId;
 use crate::domain::tag::Tag;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -33,6 +34,7 @@ pub struct Note {
     pub linked_note_id: Option<NoteId>,
     pub image_path: Option<String>,
     pub tags: Vec<Tag>,
+    pub collection_id: Option<CollectionId>,
 }
 
 impl Note {
@@ -52,6 +54,7 @@ impl Note {
             linked_note_id: None,
             image_path: None,
             tags,
+            collection_id: None,
         }
     }
 

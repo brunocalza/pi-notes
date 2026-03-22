@@ -12,5 +12,6 @@ export const makeNote = (overrides: Partial<Note> = {}): Note => ({
   linked_note_id: null,
   image_path: null,
   tags: [],
+  collection_id: null,
   ...overrides,
 });

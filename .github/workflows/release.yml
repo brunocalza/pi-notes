@@ -92,6 +92,13 @@ jobs:
           # Exclude system libs that are always present on the user's system.
           # libudev.so.1 from ubuntu-24.04 requires glibc 2.38 and must not be bundled.
           LINUXDEPLOY_EXCLUDE_LIBS: "libudev.so.1"
+          # macOS code signing and notarization
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           tagName: ${{ github.event_name == 'release' && github.ref_name || '' }}
           releaseName: "PI Notes ${{ github.ref_name }}"

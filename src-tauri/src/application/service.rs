@@ -6,17 +6,23 @@ use uuid::Uuid;
 use crate::application::{
     commands::{
         attachment::{AddAttachment, RenameAttachment},
+        collection::{CreateCollection, DeleteCollection, RenameCollection, SetNoteCollection},
         note::{CreateNote, SetNoteImage, UpdateNote},
         tag::{DeleteTag, RenameTag},
     },
     ports::{
-        attachment_repository::AttachmentRepository, note_reader::NoteReader,
+        attachment_repository::AttachmentRepository, collection_reader::CollectionReader,
+        collection_repository::CollectionRepository, note_reader::NoteReader,
         note_repository::NoteRepository, tag_repository::TagRepository,
     },
-    queries::note::{GetNotesByDate, GetNotesByTag, ListInbox, ListNotes, ListTrash, SearchNotes},
+    queries::note::{
+        GetNotesByCollection, GetNotesByDate, GetNotesByTag, ListInbox, ListNotes, ListTrash,
+        SearchNotes,
+    },
 };
 use crate::domain::{
     attachment::{AttachmentId, AttachmentMeta},
+    collection::{Collection, CollectionId},
     error::DomainError,
     note::{Note, NoteId},
     tag::Tag,
@@ -27,6 +33,8 @@ pub struct AppService {
     tags: Arc<dyn TagRepository>,
     attachments: Arc<dyn AttachmentRepository>,
     reader: Arc<dyn NoteReader>,
+    collections: Arc<dyn CollectionRepository>,
+    collection_reader: Arc<dyn CollectionReader>,
 }
 
 impl AppService {
@@ -35,12 +43,16 @@ impl AppService {
         tags: Arc<dyn TagRepository>,
         attachments: Arc<dyn AttachmentRepository>,
         reader: Arc<dyn NoteReader>,
+        collections: Arc<dyn CollectionRepository>,
+        collection_reader: Arc<dyn CollectionReader>,
     ) -> Self {
         Self {
             notes,
             tags,
             attachments,
             reader,
+            collections,
+            collection_reader,
         }
     }
 
@@ -112,6 +124,63 @@ impl AppService {
 
     pub fn delete_tag(&self, cmd: DeleteTag) -> Result<(), DomainError> {
         self.tags.delete(&cmd.tag)
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection commands
+    // -------------------------------------------------------------------------
+
+    pub fn create_collection(&self, cmd: CreateCollection) -> Result<CollectionId, DomainError> {
+        let name = cmd.name.trim().to_string();
+        if name.is_empty() {
+            return Err(DomainError::ValidationError(
+                "Collection name cannot be empty".to_string(),
+            ));
+        }
+        if name.len() > 50 {
+            return Err(DomainError::ValidationError(
+                "Collection name must be 50 characters or fewer".to_string(),
+            ));
+        }
+        let collection = Collection::create(name);
+        let id = collection.id.clone();
+        self.collections.save(&collection)?;
+        Ok(id)
+    }
+
+    pub fn rename_collection(&self, cmd: RenameCollection) -> Result<(), DomainError> {
+        let name = cmd.new_name.trim().to_string();
+        if name.is_empty() {
+            return Err(DomainError::ValidationError(
+                "Collection name cannot be empty".to_string(),
+            ));
+        }
+        if name.len() > 50 {
+            return Err(DomainError::ValidationError(
+                "Collection name must be 50 characters or fewer".to_string(),
+            ));
+        }
+        self.collections.rename(&cmd.id, &name)
+    }
+
+    pub fn delete_collection(&self, cmd: DeleteCollection) -> Result<(), DomainError> {
+        self.collections.delete(&cmd.id)
+    }
+
+    pub fn set_note_collection(&self, cmd: SetNoteCollection) -> Result<(), DomainError> {
+        self.collections
+            .set_note_collection(&cmd.note_id, cmd.collection_id.as_ref())
+    }
+
+    pub fn list_collections(&self) -> Result<Vec<Collection>, DomainError> {
+        self.collection_reader.list_collections()
+    }
+
+    pub fn get_notes_by_collection(
+        &self,
+        q: GetNotesByCollection,
+    ) -> Result<Vec<Note>, DomainError> {
+        self.reader.get_notes_by_collection(q)
     }
 
     // -------------------------------------------------------------------------

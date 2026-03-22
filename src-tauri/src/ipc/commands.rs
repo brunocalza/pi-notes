@@ -4,15 +4,18 @@ use tauri::State;
 use crate::application::{
     commands::{
         attachment::{AddAttachment, RenameAttachment},
+        collection::{CreateCollection, DeleteCollection, RenameCollection, SetNoteCollection},
         note::{CreateNote, SetNoteImage, UpdateNote},
         tag::{DeleteTag, RenameTag},
     },
     queries::note::{
-        Cursor, GetNotesByDate, GetNotesByTag, ListInbox, ListNotes, ListTrash, SearchNotes,
+        Cursor, GetNotesByCollection, GetNotesByDate, GetNotesByTag, ListInbox, ListNotes,
+        ListTrash, SearchNotes,
     },
 };
 use crate::domain::{
     attachment::{AttachmentId, AttachmentMeta},
+    collection::{Collection, CollectionId},
     note::{Note, NoteId},
 };
 use crate::infrastructure::schema;
@@ -428,6 +431,82 @@ pub fn open_attachment(state: State<AppState>, id: String) -> Result<(), String>
         .spawn()
         .map_err(to_ipc_err)?;
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Collection commands & queries
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn list_collections(state: State<AppState>) -> Result<Vec<Collection>, String> {
+    state.service.list_collections().map_err(to_ipc_err)
+}
+
+#[tauri::command]
+pub fn create_collection(state: State<AppState>, name: String) -> Result<String, String> {
+    let id = state
+        .service
+        .create_collection(CreateCollection { name })
+        .map_err(to_ipc_err)?;
+    Ok(id.to_string())
+}
+
+#[tauri::command]
+pub fn rename_collection(
+    state: State<AppState>,
+    id: String,
+    new_name: String,
+) -> Result<(), String> {
+    state
+        .service
+        .rename_collection(RenameCollection {
+            id: CollectionId(id),
+            new_name,
+        })
+        .map_err(to_ipc_err)
+}
+
+#[tauri::command]
+pub fn delete_collection(state: State<AppState>, id: String) -> Result<(), String> {
+    state
+        .service
+        .delete_collection(DeleteCollection {
+            id: CollectionId(id),
+        })
+        .map_err(to_ipc_err)
+}
+
+#[tauri::command]
+pub fn set_note_collection(
+    state: State<AppState>,
+    note_id: String,
+    collection_id: Option<String>,
+) -> Result<(), String> {
+    state
+        .service
+        .set_note_collection(SetNoteCollection {
+            note_id: NoteId(note_id),
+            collection_id: collection_id.map(CollectionId),
+        })
+        .map_err(to_ipc_err)
+}
+
+#[tauri::command]
+pub fn get_notes_by_collection_cursor(
+    state: State<AppState>,
+    collection_id: String,
+    limit: i64,
+    cursor_ts: Option<i64>,
+    cursor_rowid: Option<i64>,
+) -> Result<Vec<Note>, String> {
+    state
+        .service
+        .get_notes_by_collection(GetNotesByCollection {
+            collection_id,
+            limit,
+            cursor: make_cursor(cursor_ts, cursor_rowid),
+        })
+        .map_err(to_ipc_err)
 }
 
 // ---------------------------------------------------------------------------

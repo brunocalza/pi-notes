@@ -12,6 +12,7 @@ vi.mock("../api", () => ({
     getNotesByTagCursor: vi.fn().mockResolvedValue([]),
     searchNotesCursor: vi.fn().mockResolvedValue([]),
     getNotesByDate: vi.fn().mockResolvedValue([]),
+    getNotesByCollectionCursor: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -19,6 +20,7 @@ import { api } from "../api";
 
 const defaultProps = {
   view: "all" as const,
+  collections: [],
   searchQuery: "",
   selectedNoteId: null,
   searchFocusTrigger: 0,
@@ -38,6 +40,7 @@ beforeEach(() => {
   vi.mocked(api.getNotesByTagCursor).mockResolvedValue([]);
   vi.mocked(api.searchNotesCursor).mockResolvedValue([]);
   vi.mocked(api.getNotesByDate).mockResolvedValue([]);
+  vi.mocked(api.getNotesByCollectionCursor).mockResolvedValue([]);
 });
 
 describe("Feed", () => {
@@ -166,5 +169,27 @@ describe("Feed", () => {
   it("hides search input for date view", () => {
     render(<Feed {...defaultProps} view={{ date: "2026-03-15" }} />);
     expect(screen.queryByPlaceholderText("Search...")).not.toBeInTheDocument();
+  });
+
+  it("shows collection name as title for collection view", () => {
+    const collections = [
+      { id: "col-1", name: "Work", note_count: 2, created_at: "", updated_at: "" },
+    ];
+    render(<Feed {...defaultProps} view={{ collection: "col-1" }} collections={collections} />);
+    expect(screen.getByText("Work")).toBeInTheDocument();
+  });
+
+  it("calls getNotesByCollectionCursor when in collection view", async () => {
+    const notes = [makeNote({ id: "00000000-0000-0000-0000-000000000001", title: "Work Note" })];
+    vi.mocked(api.getNotesByCollectionCursor).mockResolvedValue(notes);
+    render(<Feed {...defaultProps} view={{ collection: "col-1" }} />);
+    await waitFor(() => {
+      expect(api.getNotesByCollectionCursor).toHaveBeenCalledWith("col-1", 50, null);
+    });
+  });
+
+  it("shows search input for collection view", () => {
+    render(<Feed {...defaultProps} view={{ collection: "col-1" }} />);
+    expect(screen.getByPlaceholderText("Search...")).toBeInTheDocument();
   });
 });

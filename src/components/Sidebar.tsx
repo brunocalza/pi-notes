@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { api } from "../api";
 import {
   Inbox,
@@ -14,12 +14,15 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar,
+  FolderOpen,
+  Plus,
 } from "lucide-react";
-import { TagEntry, View, ColorTheme } from "../types";
+import { Collection, TagEntry, View, ColorTheme } from "../types";
 
 interface Props {
   view: View;
   tags: TagEntry[];
+  collections: Collection[];
   inboxCount: number;
   theme: "dark" | "light";
   colorTheme: ColorTheme;
@@ -27,6 +30,10 @@ interface Props {
   onViewChange: (v: View) => void;
   onTagRename: () => void;
   onTagDelete: () => void;
+  onCollectionClick: (id: string) => void;
+  onCreateCollection: (name: string) => Promise<void>;
+  onRenameCollection: (id: string, newName: string) => Promise<void>;
+  onDeleteCollection: (id: string) => void;
   onThemeToggle: () => void;
   onColorThemeChange: (t: ColorTheme) => void;
   onDbPathChange: () => void;
@@ -73,6 +80,7 @@ const THEMES: Array<{
 export default function Sidebar({
   view,
   tags,
+  collections,
   inboxCount,
   theme,
   colorTheme,
@@ -80,6 +88,10 @@ export default function Sidebar({
   onViewChange,
   onTagRename,
   onTagDelete,
+  onCollectionClick,
+  onCreateCollection,
+  onRenameCollection,
+  onDeleteCollection,
   onThemeToggle,
   onColorThemeChange,
   onDbPathChange,
@@ -92,6 +104,17 @@ export default function Sidebar({
   const [dbPath, setDbPath] = useState("");
   const [dbPathInput, setDbPathInput] = useState("");
   const [dbPathError, setDbPathError] = useState("");
+
+  // Collection state
+  const [hoveredCollection, setHoveredCollection] = useState<string | null>(null);
+  const [renameCollection, setRenameCollection] = useState<string | null>(null);
+  const [renameCollectionValue, setRenameCollectionValue] = useState("");
+  const [renameCollectionError, setRenameCollectionError] = useState<string | null>(null);
+  const [creatingCollection, setCreatingCollection] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState("");
+  const [createCollectionError, setCreateCollectionError] = useState<string | null>(null);
+  const newCollectionInputRef = useRef<HTMLInputElement>(null);
+  const renameCollectionInputRef = useRef<HTMLInputElement>(null);
 
   const today = new Date();
   const [calYear, setCalYear] = useState(today.getFullYear());
@@ -140,7 +163,52 @@ export default function Sidebar({
     if (typeof v === "object" && "date" in v && typeof view === "object" && "date" in view) {
       return view.date === v.date;
     }
+    if (
+      typeof v === "object" &&
+      "collection" in v &&
+      typeof view === "object" &&
+      "collection" in view
+    ) {
+      return view.collection === v.collection;
+    }
     return false;
+  };
+
+  const handleCreateCollectionSubmit = async () => {
+    const name = newCollectionName.trim();
+    if (!name) {
+      setCreatingCollection(false);
+      setNewCollectionName("");
+      setCreateCollectionError(null);
+      return;
+    }
+    try {
+      await onCreateCollection(name);
+      setCreatingCollection(false);
+      setNewCollectionName("");
+      setCreateCollectionError(null);
+    } catch (e) {
+      setCreateCollectionError(String(e));
+      setTimeout(() => newCollectionInputRef.current?.focus(), 0);
+    }
+  };
+
+  const handleRenameCollectionSubmit = async (id: string) => {
+    const name = renameCollectionValue.trim();
+    const original = collections.find((c) => c.id === id)?.name ?? "";
+    if (!name || name === original) {
+      setRenameCollection(null);
+      setRenameCollectionError(null);
+      return;
+    }
+    try {
+      await onRenameCollection(id, name);
+      setRenameCollection(null);
+      setRenameCollectionError(null);
+    } catch (e) {
+      setRenameCollectionError(String(e));
+      setTimeout(() => renameCollectionInputRef.current?.focus(), 0);
+    }
   };
 
   const navClass = (v: View) =>
@@ -206,6 +274,128 @@ export default function Sidebar({
         </div>
       </nav>
 
+      {/* Collections */}
+      <div className="px-3 mt-6 shrink-0">
+        <div className="flex items-center gap-2 mb-1.5">
+          <FolderOpen size={13} className="text-ghost shrink-0" />
+          <span className="text-ghost text-xs font-semibold uppercase tracking-wider flex-1">
+            Collections
+          </span>
+          <button
+            onClick={() => {
+              setCreatingCollection(true);
+              setNewCollectionName("");
+              setTimeout(() => newCollectionInputRef.current?.focus(), 0);
+            }}
+            className="p-0.5 rounded hover:bg-lift text-ghost hover:text-lo transition-colors"
+            title="New collection"
+          >
+            <Plus size={12} />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-0.5" style={{ maxHeight: 160, overflowY: "auto" }}>
+          {collections.map((col) => (
+            <div
+              key={col.id}
+              className="relative"
+              onMouseEnter={() => setHoveredCollection(col.id)}
+              onMouseLeave={() => setHoveredCollection(null)}
+            >
+              {renameCollection === col.id ? (
+                <div className="px-2 py-1.5">
+                  <input
+                    ref={renameCollectionInputRef}
+                    autoFocus
+                    value={renameCollectionValue}
+                    onChange={(e) => {
+                      setRenameCollectionValue(e.target.value);
+                      setRenameCollectionError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleRenameCollectionSubmit(col.id);
+                      if (e.key === "Escape") {
+                        setRenameCollection(null);
+                        setRenameCollectionError(null);
+                      }
+                    }}
+                    onBlur={() => handleRenameCollectionSubmit(col.id)}
+                    className={`w-full bg-lift border rounded px-1.5 py-0.5 text-xs text-hi outline-none ${renameCollectionError ? "border-red-500" : "bc-focus"}`}
+                  />
+                  {renameCollectionError && (
+                    <p className="text-[10px] text-red-400 mt-0.5">{renameCollectionError}</p>
+                  )}
+                </div>
+              ) : (
+                <div
+                  className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-xs transition-colors ${
+                    isActive({ collection: col.id })
+                      ? "bg-raised text-md"
+                      : "text-dim hover:text-lo hover:bg-field"
+                  }`}
+                  onClick={() => onCollectionClick(col.id)}
+                >
+                  <span className="flex-1 truncate">{col.name}</span>
+                  <span className="text-ghost">{col.note_count}</span>
+                  {hoveredCollection === col.id && (
+                    <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => {
+                          setRenameCollection(col.id);
+                          setRenameCollectionValue(col.name);
+                        }}
+                        className="p-0.5 rounded hover:bg-raised text-ghost hover:text-lo transition-colors"
+                        title="Rename collection"
+                      >
+                        <Pencil size={11} />
+                      </button>
+                      <button
+                        onClick={() => onDeleteCollection(col.id)}
+                        className="p-0.5 rounded hover:bg-danger text-ghost hover:text-danger transition-colors"
+                        title="Delete collection"
+                      >
+                        <X size={11} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {creatingCollection && (
+            <div className="px-2 py-1.5">
+              <input
+                ref={newCollectionInputRef}
+                value={newCollectionName}
+                onChange={(e) => {
+                  setNewCollectionName(e.target.value);
+                  setCreateCollectionError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateCollectionSubmit();
+                  if (e.key === "Escape") {
+                    setCreatingCollection(false);
+                    setNewCollectionName("");
+                    setCreateCollectionError(null);
+                  }
+                }}
+                onBlur={handleCreateCollectionSubmit}
+                placeholder="Collection name..."
+                className={`w-full bg-lift border rounded px-1.5 py-0.5 text-xs text-hi outline-none placeholder-[#555] ${createCollectionError ? "border-red-500" : "bc-focus"}`}
+              />
+              {createCollectionError && (
+                <p className="text-[10px] text-red-400 mt-0.5">{createCollectionError}</p>
+              )}
+            </div>
+          )}
+
+          {collections.length === 0 && !creatingCollection && (
+            <p className="text-ghost text-xs px-2 py-1">No collections yet</p>
+          )}
+        </div>
+      </div>
+
       {/* Calendar widget */}
       {(() => {
         const WEEKDAYS_SHORT = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -241,15 +431,20 @@ export default function Sidebar({
         };
 
         return (
-          <div className="px-3 mt-4 shrink-0">
-            <div className="flex items-center gap-1.5 mb-2">
-              <Calendar size={13} className="text-ghost" />
+          <div className="px-3 mt-6 shrink-0">
+            <div className="flex items-center gap-2 mb-2">
+              <Calendar size={13} className="text-ghost shrink-0" />
+              <span className="text-ghost text-xs font-semibold uppercase tracking-wider flex-1">
+                Calendar
+              </span>
+            </div>
+            <div className="flex items-center gap-1 mb-2">
               <button
                 onClick={() => {
                   setCalMonth(today.getMonth());
                   setCalYear(today.getFullYear());
                 }}
-                className={`text-ghost text-xs font-semibold uppercase tracking-wider flex-1 text-left transition-colors ${calMonth !== today.getMonth() || calYear !== today.getFullYear() ? "hover:text-lo cursor-pointer" : "cursor-default"}`}
+                className={`text-xs flex-1 text-left transition-colors ${calMonth !== today.getMonth() || calYear !== today.getFullYear() ? "text-dim hover:text-lo cursor-pointer" : "text-dim cursor-default"}`}
                 title="Go to today"
               >
                 {MONTHS_SHORT[calMonth]} {calYear}
@@ -262,6 +457,7 @@ export default function Sidebar({
                   } else setCalMonth((m) => m - 1);
                 }}
                 className="p-0.5 rounded hover:bg-lift text-ghost hover:text-lo transition-colors"
+                title="Previous month"
               >
                 <ChevronLeft size={12} />
               </button>
@@ -273,6 +469,7 @@ export default function Sidebar({
                   } else setCalMonth((m) => m + 1);
                 }}
                 className="p-0.5 rounded hover:bg-lift text-ghost hover:text-lo transition-colors"
+                title="Next month"
               >
                 <ChevronRight size={12} />
               </button>
@@ -332,15 +529,15 @@ export default function Sidebar({
         );
       })()}
 
-      {/* Tags — scrollable */}
-      <div className="flex-1 min-h-0 overflow-y-auto mt-6 px-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Tag size={13} className="text-ghost" />
+      {/* Tags — flex-1, scroll only on list below search */}
+      <div className="flex-1 min-h-0 flex flex-col mt-6 px-3">
+        <div className="flex items-center gap-2 mb-2 shrink-0 px-1">
+          <Tag size={13} className="text-ghost shrink-0" />
           <span className="text-ghost text-xs font-semibold uppercase tracking-wider">Tags</span>
         </div>
 
         {tags.length > 5 && (
-          <div className="relative mb-2">
+          <div className="relative mb-2 shrink-0">
             <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-ghost" />
             <input
               type="text"
@@ -352,7 +549,7 @@ export default function Sidebar({
           </div>
         )}
 
-        <div className="flex flex-col gap-0.5 pb-2">
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-0.5 pb-2">
           {filteredTags.map(([tag, count]) => (
             <div
               key={tag}
@@ -361,7 +558,7 @@ export default function Sidebar({
               onMouseLeave={() => setHoveredTag(null)}
             >
               {renameTag === tag ? (
-                <div className="flex items-center gap-1 px-2 py-1">
+                <div className="flex items-center gap-1 px-2 py-1.5">
                   <input
                     autoFocus
                     value={renameValue}
@@ -376,7 +573,7 @@ export default function Sidebar({
                 </div>
               ) : (
                 <div
-                  className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer text-xs transition-colors ${
+                  className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-xs transition-colors ${
                     isActive({ tag })
                       ? "bg-raised text-md"
                       : "text-dim hover:text-lo hover:bg-field"
@@ -421,6 +618,7 @@ export default function Sidebar({
           )}
         </div>
       </div>
+      {/* end Tags */}
 
       {/* Settings panel */}
       {settingsOpen && (

@@ -10,6 +10,7 @@ export interface Note {
   linked_note_id: string | null;
   image_path: string | null;
   tags: string[];
+  collection_id: string | null;
 }
 
 export interface AttachmentMeta {
@@ -21,8 +22,22 @@ export interface AttachmentMeta {
   created_at: string;
 }
 
+export interface Collection {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  note_count: number;
+}
+
 export type TagEntry = [string, number]; // [tag_name, count]
 
-export type View = "all" | "inbox" | "trash" | { tag: string } | { date: string };
+export type View =
+  | "all"
+  | "inbox"
+  | "trash"
+  | { tag: string }
+  | { date: string }
+  | { collection: string };
 
 export type ColorTheme = "graphite" | "ink" | "nord" | "dusk" | "forest";

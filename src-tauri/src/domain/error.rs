@@ -5,6 +5,8 @@ pub enum DomainError {
     #[allow(dead_code)]
     NotFound(String),
     StorageError(String),
+    ValidationError(String),
+    DuplicateName(String),
 }
 
 impl fmt::Display for DomainError {
@@ -12,6 +14,10 @@ impl fmt::Display for DomainError {
         match self {
             DomainError::NotFound(id) => write!(f, "not found: {id}"),
             DomainError::StorageError(msg) => write!(f, "storage error: {msg}"),
+            DomainError::ValidationError(msg) => write!(f, "{msg}"),
+            DomainError::DuplicateName(name) => {
+                write!(f, "A collection named \"{name}\" already exists")
+            }
         }
     }
 }
