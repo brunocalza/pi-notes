@@ -23,14 +23,15 @@
     "format:rust:check": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check"
   },
   "dependencies": {
-    "@fontsource/inter": "^5.2.8",
-    "@fontsource/lora": "^5.2.8",
+    "@fontsource-variable/nunito": "^5.2.7",
+    "@fontsource-variable/source-serif-4": "^5.2.9",
     "@tauri-apps/api": "^2.10.1",
     "katex": "^0.16.38",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0"

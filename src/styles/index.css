@@ -1,9 +1,9 @@
 @import "tailwindcss";
-@import "@fontsource/inter/400.css";
-@import "@fontsource/inter/600.css";
-@import "@fontsource/lora/400.css";
-@import "@fontsource/lora/600.css";
-@import "@fontsource/lora/400-italic.css";
+/* Content: Source Serif 4 with optical sizing axis */
+@import "@fontsource-variable/source-serif-4/opsz.css";
+@import "@fontsource-variable/source-serif-4/opsz-italic.css";
+/* Headings: Nunito variable weight */
+@import "@fontsource-variable/nunito";
 
 /* ── Theme tokens ─────────────────────────────────────────────────────────── */
 
@@ -41,6 +41,16 @@
   --c-link:       #4493f8;
   --c-link-hover: #79c0ff;
   --c-scrollbar:  #30363d;
+
+  /* syntax highlighting */
+  --c-syn-keyword:  #ff7b72;
+  --c-syn-string:   #a5d6ff;
+  --c-syn-comment:  #6e7681;
+  --c-syn-number:   #79c0ff;
+  --c-syn-function: #d2a8ff;
+  --c-syn-type:     #ffa657;
+  --c-syn-tag:      #7ee787;
+  --c-syn-attr:     #a5d6ff;
 }
 
 :root.light {
@@ -77,6 +87,16 @@
   --c-link:       #0969da;
   --c-link-hover: #0550ae;
   --c-scrollbar:  #d0d7de;
+
+  /* syntax highlighting */
+  --c-syn-keyword:  #cf222e;
+  --c-syn-string:   #0a3069;
+  --c-syn-comment:  #6e7781;
+  --c-syn-number:   #0550ae;
+  --c-syn-function: #6639ba;
+  --c-syn-type:     #953800;
+  --c-syn-tag:      #116329;
+  --c-syn-attr:     #0550ae;
 }
 
 /* ── Ink (warm amber) ─────────────────────────────────────────────────────── */
@@ -399,17 +419,31 @@
 
 /* ── Base ─────────────────────────────────────────────────────────────────── */
 
+@utility font-ui {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Ubuntu", "Cantarell", sans-serif;
+  line-height: 1.4;
+}
+
+@utility font-heading {
+  font-family: "Nunito Variable", system-ui, sans-serif;
+  font-optical-sizing: auto;
+  line-height: 1.25;
+}
+
 @layer base {
   * { box-sizing: border-box; }
 
   body {
     margin: 0;
     padding: 0;
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Ubuntu", "Cantarell", sans-serif;
+    line-height: 1.4;
     background: var(--c-bg-app);
     color: var(--c-text-hi);
     height: 100vh;
     overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   #root {
@@ -420,98 +454,196 @@
 
 /* ── Markdown ─────────────────────────────────────────────────────────────── */
 
+/* Body: Source Serif 4 — serif for calm long-form reading */
 .markdown-content {
-  font-family: "Lora", Georgia, serif;
-  line-height: 1.7;
+  font-family: "Source Serif 4 Variable", Georgia, "Times New Roman", serif;
+  font-size: 1rem; /* 16px */
+  font-optical-sizing: auto;
+  line-height: 1.6;
   color: var(--c-text-md);
   overflow-wrap: break-word;
 }
 
+/* Headings: Nunito — soft, rounded, calm hierarchy */
 .markdown-content h1,
 .markdown-content h2,
 .markdown-content h3,
 .markdown-content h4 {
+  font-family: "Nunito Variable", system-ui, sans-serif;
+  font-weight: 700;
   color: var(--c-text-hi);
-  margin-top: 1.2em;
-  margin-bottom: 0.4em;
+  line-height: 1.25;
+  margin-top: 1.75em;
+  margin-bottom: 0.5em;
 }
 
-.markdown-content h1 { font-size: 1.5rem; }
-.markdown-content h2 { font-size: 1.25rem; }
-.markdown-content h3 { font-size: 1.1rem; }
+/* Scale: 28 / 24 / 20 / 16px */
+.markdown-content h1 { font-size: 1.75rem; }
+.markdown-content h2 { font-size: 1.5rem; }
+.markdown-content h3 { font-size: 1.25rem; }
+.markdown-content h4 { font-size: 1rem; font-weight: 600; color: var(--c-text-lo); text-transform: uppercase; letter-spacing: 0.06em; }
 
-.markdown-content p { margin: 0.5em 0; }
+/* Generous paragraph spacing for reading comfort */
+.markdown-content p { margin: 0.85em 0; }
 
+.markdown-content strong { color: var(--c-text-hi); font-weight: 600; }
+.markdown-content em { font-style: italic; }
+
+/* Inline code: monospace */
 .markdown-content code {
   background: var(--c-bg-lift);
   border: 1px solid var(--c-bc-strong);
-  border-radius: 3px;
-  padding: 0.1em 0.3em;
-  font-size: 0.875em;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  font-size: 0.82em;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
   color: var(--c-code);
 }
 
+/* Code blocks: monospace, slightly tighter leading */
 .markdown-content pre {
-  background: var(--c-bg-lift);
-  border: 1px solid var(--c-bc-strong);
-  border-radius: 6px;
-  padding: 1em;
+  background: var(--c-bg-field);
+  border: 1px solid var(--c-bc-ui);
+  border-radius: 8px;
+  padding: 1.1em 1.2em;
   overflow-x: auto;
+  margin: 1.1em 0;
+  line-height: 1.55;
 }
 
 .markdown-content pre code {
   background: none;
   border: none;
   padding: 0;
+  font-size: 0.875rem; /* 14px — secondary text scale */
+  font-family: "JetBrains Mono", ui-monospace, monospace;
   color: var(--c-text-md);
 }
 
+/* Blockquote: accent border + tinted background + italic serif */
 .markdown-content blockquote {
-  border-left: 3px solid var(--c-bc-strong);
-  padding-left: 1em;
+  border-left: 3px solid var(--c-bc-focus);
+  background: color-mix(in srgb, var(--c-bg-lift) 60%, transparent);
+  padding: 0.55em 1em;
+  margin: 1em 0;
   margin-left: 0;
+  border-radius: 0 6px 6px 0;
   color: var(--c-text-lo);
+  font-style: italic;
 }
 
+.markdown-content blockquote p { margin: 0; }
+
 .markdown-content ul,
-.markdown-content ol { padding-left: 1.5em; }
+.markdown-content ol { padding-left: 1.6em; margin: 0.6em 0; }
 
 .markdown-content ul { list-style-type: disc; }
 .markdown-content ol { list-style-type: decimal; }
 
-.markdown-content li { margin: 0.2em 0; }
+.markdown-content li { margin: 0.35em 0; }
+.markdown-content li > p { margin: 0; }
 
+.markdown-content hr {
+  border: none;
+  border-top: 1px solid var(--c-bc-ui);
+  margin: 1.75em 0;
+}
+
+/* Tables: system font for data, smaller scale (14px) */
 .markdown-content table {
   border-collapse: collapse;
   width: 100%;
-  margin: 0.8em 0;
+  margin: 1.1em 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.875rem;
 }
 
 .markdown-content th,
 .markdown-content td {
-  border: 1px solid var(--c-bc-strong);
-  padding: 0.4em 0.8em;
+  border: 1px solid var(--c-bc-ui);
+  padding: 0.5em 0.9em;
   text-align: left;
 }
 
 .markdown-content th {
   background: var(--c-bg-lift);
   color: var(--c-text-hi);
+  font-weight: 600;
+  font-size: 0.75rem; /* 12px — caption scale */
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .markdown-content a {
   color: var(--c-link);
   text-decoration: none;
 }
-.markdown-content a:hover { color: var(--c-link-hover); }
+.markdown-content a:hover {
+  color: var(--c-link-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
 .wikilink {
   color: var(--c-link);
   cursor: pointer;
   text-decoration: none;
 }
-.wikilink:hover { color: var(--c-link-hover); }
+.wikilink:hover {
+  color: var(--c-link-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── Syntax highlighting ──────────────────────────────────────────────────── */
+
+.hljs { background: transparent; color: var(--c-text-md); }
+
+.hljs-keyword,
+.hljs-operator,
+.hljs-selector-tag,
+.hljs-selector-pseudo { color: var(--c-syn-keyword); font-weight: 500; }
+
+.hljs-string,
+.hljs-template-variable,
+.hljs-addition { color: var(--c-syn-string); }
+
+.hljs-comment,
+.hljs-quote { color: var(--c-syn-comment); font-style: italic; }
+
+.hljs-number,
+.hljs-literal,
+.hljs-boolean { color: var(--c-syn-number); }
+
+.hljs-title,
+.hljs-title\.function_,
+.hljs-title\.class_,
+.hljs-name { color: var(--c-syn-function); }
+
+.hljs-type,
+.hljs-built_in,
+.hljs-class .hljs-title { color: var(--c-syn-type); }
+
+.hljs-tag { color: var(--c-syn-tag); }
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-selector-attr { color: var(--c-syn-attr); }
+
+.hljs-variable,
+.hljs-params { color: var(--c-text-hi); }
+
+.hljs-deletion { color: var(--c-syn-keyword); }
+
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 600; }
+
+/* ── Block editor ─────────────────────────────────────────────────────────── */
+
+.block-editing {
+  box-shadow: -2px 0 0 var(--c-bc-ui);
+  padding-left: 0.5rem;
+}
 
 /* ── Scrollbars ───────────────────────────────────────────────────────────── */
 

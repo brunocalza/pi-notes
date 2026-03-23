@@ -305,7 +305,7 @@ export default function NoteDetail({
                 save(title, note.content, tags);
               }}
               placeholder="Untitled"
-              className="flex-1 text-xl font-semibold text-hi bg-transparent outline-none placeholder-ghost min-w-0"
+              className="flex-1 text-2xl font-bold text-hi bg-transparent outline-none placeholder-ghost min-w-0 font-heading"
             />
             <div className="relative shrink-0">
               <button
