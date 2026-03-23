@@ -174,6 +174,7 @@ export default function BlockEditor({
   const taRef = useRef<HTMLTextAreaElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const lastCommitted = useRef(content);
+  const pendingCursorRef = useRef<number | null>(null);
 
   // Undo / redo history
   const historyRef = useRef<string[][]>([toBlocks(content)]);
@@ -223,7 +224,9 @@ export default function BlockEditor({
       ta.style.height = "auto";
       ta.style.height = ta.scrollHeight + "px";
       ta.focus();
-      ta.setSelectionRange(ta.value.length, ta.value.length);
+      const pos = pendingCursorRef.current ?? ta.value.length;
+      pendingCursorRef.current = null;
+      ta.setSelectionRange(pos, pos);
     }
   }, [active]);
 
@@ -366,19 +369,27 @@ export default function BlockEditor({
     [blocks]
   );
 
-  const commitBlock = (i: number, value: string) => {
+  // Save block i without changing active — used when navigating between blocks
+  const saveBlock = (i: number, value: string): string[] => {
     setSuggestions([]);
     const sub = toBlocks(value);
     const merged = [...blocks.slice(0, i), ...sub, ...blocks.slice(i + 1)].filter((b) => b.trim());
-
     const final = merged.length > 0 ? merged : [""];
     pushHistory(final);
     setBlocks(final);
-    setActive(null);
     const newContent = fromBlocks(final);
-    if (newContent === lastCommitted.current) return;
-    lastCommitted.current = newContent;
-    onCommit(newContent);
+    if (newContent !== lastCommitted.current) {
+      lastCommitted.current = newContent;
+      onCommit(newContent);
+    }
+    return final;
+  };
+
+  const commitBlock = (i: number, value: string) => {
+    const final = saveBlock(i, value);
+    // After a split, active block may have shifted — just deactivate
+    void final;
+    setActive(null);
   };
 
   const components = useMemo(
@@ -647,6 +658,22 @@ export default function BlockEditor({
                   const ta = e.target as HTMLTextAreaElement;
                   const cursor = ta.selectionStart;
                   const text = blocks[i];
+
+                  // Enter at position 0 — insert empty block above
+                  if (cursor === 0 && text.length > 0) {
+                    e.preventDefault();
+                    const nb = [...blocks.slice(0, i), "", ...blocks.slice(i)];
+                    pushHistory(nb);
+                    setBlocks(nb);
+                    setTimeout(() => {
+                      if (taRef.current) {
+                        taRef.current.style.height = "auto";
+                        taRef.current.style.height = taRef.current.scrollHeight + "px";
+                      }
+                    }, 0);
+                    return;
+                  }
+
                   const lineStart = text.lastIndexOf("\n", cursor - 1) + 1;
                   const lineText = text.slice(lineStart, cursor);
                   const bulletMatch = lineText.match(/^(\s*)([-*]) /);
@@ -679,6 +706,32 @@ export default function BlockEditor({
                         ta.setSelectionRange(pos, pos);
                       }, 0);
                     }
+                    return;
+                  }
+                }
+
+                // Arrow Up at start → move to previous block (cursor at end)
+                if (e.key === "ArrowUp") {
+                  const ta = e.target as HTMLTextAreaElement;
+                  if (ta.selectionStart === 0 && ta.selectionEnd === 0 && i > 0) {
+                    e.preventDefault();
+                    saveBlock(i, blocks[i]);
+                    setActive(i - 1);
+                    return;
+                  }
+                }
+
+                // Arrow Down at end → move to next block (cursor at start)
+                if (e.key === "ArrowDown") {
+                  const ta = e.target as HTMLTextAreaElement;
+                  const atEnd =
+                    ta.selectionStart === ta.value.length &&
+                    ta.selectionEnd === ta.value.length;
+                  if (atEnd && i < blocks.length - 1) {
+                    e.preventDefault();
+                    saveBlock(i, blocks[i]);
+                    pendingCursorRef.current = 0;
+                    setActive(i + 1);
                     return;
                   }
                 }
