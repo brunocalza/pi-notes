@@ -725,8 +725,7 @@ export default function BlockEditor({
                 if (e.key === "ArrowDown") {
                   const ta = e.target as HTMLTextAreaElement;
                   const atEnd =
-                    ta.selectionStart === ta.value.length &&
-                    ta.selectionEnd === ta.value.length;
+                    ta.selectionStart === ta.value.length && ta.selectionEnd === ta.value.length;
                   if (atEnd && i < blocks.length - 1) {
                     e.preventDefault();
                     saveBlock(i, blocks[i]);
