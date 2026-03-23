@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import rehypeHighlight from "rehype-highlight";
+import { all } from "lowlight";
 import { FileText, Bold, Italic, Code, Link2, List, Quote, Heading2 } from "lucide-react";
 import { api } from "../api";
 import { AttachmentMeta } from "../types";
@@ -817,7 +818,7 @@ export default function BlockEditor({
           <div key={i} onClick={() => setActive(i)} className="cursor-text">
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkMath]}
-              rehypePlugins={[rehypeKatex, [rehypeHighlight, { detect: true }]]}
+              rehypePlugins={[rehypeKatex, [rehypeHighlight, { detect: true, languages: all }]]}
               urlTransform={urlTransform}
               components={components}
             >

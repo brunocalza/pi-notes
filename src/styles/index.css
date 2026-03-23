@@ -620,6 +620,8 @@
 .hljs-title\.class_,
 .hljs-name { color: var(--c-syn-function); }
 
+.hljs-symbol { color: var(--c-syn-type); }
+
 .hljs-type,
 .hljs-built_in,
 .hljs-class .hljs-title { color: var(--c-syn-type); }
