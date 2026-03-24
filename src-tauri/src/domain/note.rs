@@ -83,3 +83,85 @@ impl Note {
         true
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tag(s: &str) -> Tag {
+        Tag::parse(s).unwrap()
+    }
+
+    #[test]
+    fn create_sets_defaults() {
+        let note = Note::create("Title".into(), "Content".into(), vec![]);
+        assert!(!note.id.as_str().is_empty());
+        assert_eq!(note.title, "Title");
+        assert_eq!(note.content, "Content");
+        assert_eq!(note.rowid, 0);
+        assert!(note.in_inbox);
+        assert!(!note.trashed);
+        assert!(note.linked_note_id.is_none());
+        assert!(note.image_path.is_none());
+        assert!(note.collection_id.is_none());
+        assert_eq!(note.created_at, note.updated_at);
+    }
+
+    #[test]
+    fn create_with_tags() {
+        let note = Note::create("T".into(), "C".into(), vec![tag("rust"), tag("dev")]);
+        assert_eq!(note.tags.len(), 2);
+    }
+
+    #[test]
+    fn note_id_display() {
+        let note = Note::create("T".into(), "C".into(), vec![]);
+        assert_eq!(note.id.to_string(), note.id.as_str());
+    }
+
+    #[test]
+    fn apply_edit_no_change_returns_false() {
+        let mut note = Note::create("Title".into(), "Content".into(), vec![tag("a")]);
+        let original_updated_at = note.updated_at;
+        let changed = note.apply_edit("Title".into(), "Content".into(), vec![tag("a")]);
+        assert!(!changed);
+        assert_eq!(note.updated_at, original_updated_at);
+    }
+
+    #[test]
+    fn apply_edit_title_change_returns_true() {
+        let mut note = Note::create("Old".into(), "Content".into(), vec![]);
+        let changed = note.apply_edit("New".into(), "Content".into(), vec![]);
+        assert!(changed);
+        assert_eq!(note.title, "New");
+    }
+
+    #[test]
+    fn apply_edit_content_change_bumps_updated_at() {
+        let mut note = Note::create("T".into(), "Old".into(), vec![]);
+        let before = note.updated_at;
+        // Busy-wait for at least 1ms to ensure updated_at changes
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        let changed = note.apply_edit("T".into(), "New".into(), vec![]);
+        assert!(changed);
+        assert!(note.updated_at >= before);
+        assert_eq!(note.content, "New");
+    }
+
+    #[test]
+    fn apply_edit_tags_only_does_not_bump_updated_at() {
+        let mut note = Note::create("T".into(), "C".into(), vec![tag("a")]);
+        let original_updated_at = note.updated_at;
+        let changed = note.apply_edit("T".into(), "C".into(), vec![tag("b")]);
+        assert!(changed);
+        assert_eq!(note.updated_at, original_updated_at);
+        assert_eq!(note.tags, vec![tag("b")]);
+    }
+
+    #[test]
+    fn apply_edit_tags_reordered_no_change() {
+        let mut note = Note::create("T".into(), "C".into(), vec![tag("b"), tag("a")]);
+        let changed = note.apply_edit("T".into(), "C".into(), vec![tag("a"), tag("b")]);
+        assert!(!changed);
+    }
+}

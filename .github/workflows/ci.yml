@@ -56,6 +56,9 @@ jobs:
       - name: Lint Rust
         run: npm run lint:rust
 
+      - name: Run Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+
   e2e:
     runs-on: ubuntu-latest
 

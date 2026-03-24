@@ -39,3 +39,30 @@ impl Collection {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_sets_defaults() {
+        let c = Collection::create("Books".into());
+        assert!(!c.id.as_str().is_empty());
+        assert_eq!(c.name, "Books");
+        assert_eq!(c.note_count, 0);
+        assert_eq!(c.created_at, c.updated_at);
+    }
+
+    #[test]
+    fn collection_id_display() {
+        let c = Collection::create("X".into());
+        assert_eq!(c.id.to_string(), c.id.as_str());
+    }
+
+    #[test]
+    fn two_collections_have_distinct_ids() {
+        let a = Collection::create("A".into());
+        let b = Collection::create("B".into());
+        assert_ne!(a.id, b.id);
+    }
+}

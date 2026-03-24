@@ -500,3 +500,289 @@ impl NoteReader for SqliteNoteReader {
             .ok())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::ports::note_reader::NoteReader;
+    use crate::application::ports::note_repository::NoteRepository;
+    use crate::application::ports::tag_repository::TagRepository;
+    use crate::application::queries::note::{
+        GetNotesByDate, GetNotesByTag, ListInbox, ListNotes, ListTrash, SearchNotes,
+    };
+    use crate::domain::{note::Note, tag::Tag};
+    use crate::infrastructure::note_repository::{test_db, SqliteNoteRepository};
+    use crate::infrastructure::tag_repository::SqliteTagRepository;
+
+    fn setup() -> (SqliteNoteReader, SqliteNoteRepository) {
+        let db = test_db();
+        (
+            SqliteNoteReader::new(Arc::clone(&db)),
+            SqliteNoteRepository::new(Arc::clone(&db)),
+        )
+    }
+
+    fn accepted_note(title: &str, content: &str) -> Note {
+        let mut n = Note::create(title.into(), content.into(), vec![]);
+        n.in_inbox = false;
+        n
+    }
+
+    #[test]
+    fn get_note_returns_none_for_unknown_id() {
+        let (reader, _) = setup();
+        let result = reader
+            .get_note(crate::domain::note::NoteId("nope".into()))
+            .unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn get_note_by_title_case_insensitive() {
+        let (reader, repo) = setup();
+        let n = accepted_note("Rust Notes", "content");
+        repo.save(&n).unwrap();
+        let found = reader.get_note_by_title("rust notes").unwrap().unwrap();
+        assert_eq!(found.id, n.id);
+    }
+
+    #[test]
+    fn list_notes_excludes_inbox_and_trash() {
+        let (reader, repo) = setup();
+        let inbox = Note::create("Inbox".into(), "c".into(), vec![]);
+        let mut accepted = Note::create("Accepted".into(), "c".into(), vec![]);
+        accepted.in_inbox = false;
+        let mut trashed = Note::create("Trashed".into(), "c".into(), vec![]);
+        trashed.in_inbox = false;
+        trashed.trashed = true;
+        repo.save(&inbox).unwrap();
+        repo.save(&accepted).unwrap();
+        repo.save(&trashed).unwrap();
+        let notes = reader
+            .list_notes(ListNotes {
+                limit: 100,
+                cursor: None,
+            })
+            .unwrap();
+        assert_eq!(notes.len(), 1);
+        assert_eq!(notes[0].title, "Accepted");
+    }
+
+    #[test]
+    fn list_inbox_returns_only_inbox_notes() {
+        let (reader, repo) = setup();
+        let inbox = Note::create("Inbox".into(), "c".into(), vec![]);
+        let mut accepted = Note::create("Accepted".into(), "c".into(), vec![]);
+        accepted.in_inbox = false;
+        repo.save(&inbox).unwrap();
+        repo.save(&accepted).unwrap();
+        let notes = reader
+            .list_inbox(ListInbox {
+                limit: 100,
+                cursor: None,
+            })
+            .unwrap();
+        assert_eq!(notes.len(), 1);
+        assert_eq!(notes[0].title, "Inbox");
+    }
+
+    #[test]
+    fn list_trash_returns_only_trashed_notes() {
+        let (reader, repo) = setup();
+        let mut trashed = Note::create("Trashed".into(), "c".into(), vec![]);
+        trashed.trashed = true;
+        let normal = Note::create("Normal".into(), "c".into(), vec![]);
+        repo.save(&trashed).unwrap();
+        repo.save(&normal).unwrap();
+        let notes = reader
+            .list_trash(ListTrash {
+                limit: 100,
+                cursor: None,
+            })
+            .unwrap();
+        assert_eq!(notes.len(), 1);
+        assert_eq!(notes[0].title, "Trashed");
+    }
+
+    #[test]
+    fn search_notes_by_content() {
+        let (reader, repo) = setup();
+        let n = accepted_note("Meeting Notes", "discussed project alpha");
+        repo.save(&n).unwrap();
+        let results = reader
+            .search_notes(SearchNotes {
+                query: "alpha".into(),
+                limit: 10,
+                cursor: None,
+            })
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, n.id);
+    }
+
+    #[test]
+    fn search_notes_by_title() {
+        let (reader, repo) = setup();
+        let n = accepted_note("Alpha Project", "some content");
+        repo.save(&n).unwrap();
+        let results = reader
+            .search_notes(SearchNotes {
+                query: "Alpha".into(),
+                limit: 10,
+                cursor: None,
+            })
+            .unwrap();
+        assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn get_notes_by_tag() {
+        let (reader, repo) = setup();
+        let mut n = Note::create(
+            "Tagged".into(),
+            "c".into(),
+            vec![Tag::parse("rust").unwrap()],
+        );
+        n.in_inbox = false;
+        repo.save(&n).unwrap();
+        let results = reader
+            .get_notes_by_tag(GetNotesByTag {
+                tag: "rust".into(),
+                limit: 10,
+                cursor: None,
+            })
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, n.id);
+    }
+
+    #[test]
+    fn get_notes_by_date() {
+        let (reader, repo) = setup();
+        let n = accepted_note("Dated", "event on 2025-03-15");
+        repo.save(&n).unwrap();
+        let results = reader
+            .get_notes_by_date(GetNotesByDate {
+                date: "2025-03-15".into(),
+            })
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, n.id);
+    }
+
+    #[test]
+    fn get_backlinks() {
+        let (reader, repo) = setup();
+        let target = accepted_note("Target Note", "original content");
+        let linker = accepted_note("Linker", "see [[Target Note]] for more");
+        repo.save(&target).unwrap();
+        repo.save(&linker).unwrap();
+        let links = reader.get_backlinks(target.id.clone()).unwrap();
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].id, linker.id);
+    }
+
+    #[test]
+    fn get_recent_notes_returns_up_to_five() {
+        let (reader, repo) = setup();
+        for i in 0..7 {
+            let n = accepted_note(&format!("Note {i}"), "c");
+            repo.save(&n).unwrap();
+        }
+        let recent = reader.get_recent_notes().unwrap();
+        assert!(recent.len() <= 5);
+    }
+
+    #[test]
+    fn get_all_tags_returns_counts() {
+        let (reader, repo) = setup();
+        let db = test_db();
+        let repo2 = SqliteNoteRepository::new(Arc::clone(&db));
+        let reader2 = SqliteNoteReader::new(Arc::clone(&db));
+        let n1 = {
+            let mut n = Note::create("N1".into(), "c".into(), vec![Tag::parse("dev").unwrap()]);
+            n.in_inbox = false;
+            n
+        };
+        let n2 = {
+            let mut n = Note::create(
+                "N2".into(),
+                "c".into(),
+                vec![Tag::parse("dev").unwrap(), Tag::parse("rust").unwrap()],
+            );
+            n.in_inbox = false;
+            n
+        };
+        repo2.save(&n1).unwrap();
+        repo2.save(&n2).unwrap();
+        let tags = reader2.get_all_tags().unwrap();
+        let dev = tags.iter().find(|(t, _)| t == "dev").unwrap();
+        assert_eq!(dev.1, 2);
+        drop((reader, repo));
+    }
+
+    #[test]
+    fn get_all_note_titles() {
+        let (reader, repo) = setup();
+        let n = accepted_note("Unique Title", "c");
+        repo.save(&n).unwrap();
+        let titles = reader.get_all_note_titles().unwrap();
+        assert!(titles.contains(&"Unique Title".to_string()));
+    }
+
+    #[test]
+    fn get_days_with_notes_in_month() {
+        let (reader, repo) = setup();
+        let n = accepted_note("D", "meeting 2025-06-15 and 2025-06-20");
+        repo.save(&n).unwrap();
+        let days = reader.get_days_with_notes_in_month("2025-06").unwrap();
+        assert!(days.contains(&15));
+        assert!(days.contains(&20));
+    }
+
+    #[test]
+    fn rename_tag_updates_notes() {
+        let db = test_db();
+        let repo = SqliteNoteRepository::new(Arc::clone(&db));
+        let reader = SqliteNoteReader::new(Arc::clone(&db));
+        let tag_repo = SqliteTagRepository::new(Arc::clone(&db));
+        let mut n = Note::create("T".into(), "c".into(), vec![Tag::parse("oldtag").unwrap()]);
+        n.in_inbox = false;
+        repo.save(&n).unwrap();
+        tag_repo.rename("oldtag", "newtag").unwrap();
+        let found = reader.get_note(n.id.clone()).unwrap().unwrap();
+        let tag_strs: Vec<&str> = found.tags.iter().map(Tag::as_str).collect();
+        assert!(tag_strs.contains(&"newtag"));
+        assert!(!tag_strs.contains(&"oldtag"));
+    }
+
+    #[test]
+    fn delete_tag_removes_from_notes() {
+        let db = test_db();
+        let repo = SqliteNoteRepository::new(Arc::clone(&db));
+        let reader = SqliteNoteReader::new(Arc::clone(&db));
+        let tag_repo = SqliteTagRepository::new(Arc::clone(&db));
+        let mut n = Note::create(
+            "T".into(),
+            "c".into(),
+            vec![Tag::parse("removeme").unwrap()],
+        );
+        n.in_inbox = false;
+        repo.save(&n).unwrap();
+        tag_repo.delete("removeme").unwrap();
+        let found = reader.get_note(n.id.clone()).unwrap().unwrap();
+        assert!(found.tags.is_empty());
+    }
+
+    #[test]
+    fn prepare_fts_query_wraps_plain_words() {
+        let q = prepare_fts_query("hello world");
+        assert_eq!(q, "\"hello\"* \"world\"*");
+    }
+
+    #[test]
+    fn prepare_fts_query_passes_through_advanced() {
+        let q = prepare_fts_query("hello AND world");
+        assert_eq!(q, "hello AND world");
+    }
+}
