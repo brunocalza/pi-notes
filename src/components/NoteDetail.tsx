@@ -15,6 +15,7 @@ import { api } from "../api";
 import { Collection, Note, AttachmentMeta } from "../types";
 import BlockEditor from "./BlockEditor";
 import { validateTag } from "../tags";
+import { useToast } from "../hooks/useToast";
 
 interface Props {
   noteId: string;
@@ -37,6 +38,7 @@ export default function NoteDetail({
   onDeselect,
   onRefresh,
 }: Props) {
+  const { error: toastError } = useToast();
   const [note, setNote] = useState<Note | null>(null);
   const [backlinks, setBacklinks] = useState<Note[]>([]);
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
@@ -71,10 +73,16 @@ export default function NoteDetail({
           setCollectionId(n.collection_id);
         }
       })
-      .catch(console.error);
-    api.getBacklinks(noteId).then(setBacklinks).catch(console.error);
-    api.getAttachments(noteId).then(setAttachments).catch(console.error);
-  }, [noteId]);
+      .catch((e) => toastError(`Failed to load note: ${String(e)}`));
+    api
+      .getBacklinks(noteId)
+      .then(setBacklinks)
+      .catch((e) => toastError(`Failed to load backlinks: ${String(e)}`));
+    api
+      .getAttachments(noteId)
+      .then(setAttachments)
+      .catch((e) => toastError(`Failed to load attachments: ${String(e)}`));
+  }, [noteId, toastError]);
 
   useEffect(() => {
     if (focusTitle && note && titleRef.current) {
@@ -131,7 +139,7 @@ export default function NoteDetail({
       await api.setNoteCollection(note.id, id);
       onRefresh();
     } catch (e) {
-      console.error("Failed to assign collection:", e);
+      toastError(`Failed to assign collection: ${String(e)}`);
     }
   };
 
@@ -141,7 +149,7 @@ export default function NoteDetail({
       await api.updateNote(note.id, newTitle.trim() || note.title, newContent, newTags);
       onRefresh();
     } catch (e) {
-      console.error("Failed to save note:", e);
+      toastError(`Failed to save note: ${String(e)}`);
     }
   };
 
@@ -201,7 +209,7 @@ export default function NoteDetail({
       };
       setAttachments((prev) => [...prev, meta]);
     } catch (e) {
-      console.error("Failed to attach file:", e);
+      toastError(`Failed to attach file: ${String(e)}`);
     }
   };
 
@@ -224,7 +232,7 @@ export default function NoteDetail({
         }
       }
     } catch (e) {
-      console.error("Failed to rename attachment:", e);
+      toastError(`Failed to rename attachment: ${String(e)}`);
     }
   };
 
@@ -233,7 +241,7 @@ export default function NoteDetail({
       await api.deleteAttachment(id);
       setAttachments((prev) => prev.filter((a) => a.id !== id));
     } catch (e) {
-      console.error("Failed to delete attachment:", e);
+      toastError(`Failed to delete attachment: ${String(e)}`);
     }
   };
 
@@ -251,7 +259,7 @@ export default function NoteDetail({
       onDeselect();
       onRefresh();
     } catch (e) {
-      console.error("Failed to accept note:", e);
+      toastError(`Failed to accept note: ${String(e)}`);
     }
   };
 
@@ -262,7 +270,7 @@ export default function NoteDetail({
       onDeselect();
       onRefresh();
     } catch (e) {
-      console.error("Failed to trash note:", e);
+      toastError(`Failed to trash note: ${String(e)}`);
     }
   };
 
@@ -274,7 +282,7 @@ export default function NoteDetail({
       onDeselect();
       onRefresh();
     } catch (e) {
-      console.error("Failed to delete note:", e);
+      toastError(`Failed to delete note: ${String(e)}`);
     }
   };
 
@@ -285,7 +293,7 @@ export default function NoteDetail({
       onDeselect();
       onRefresh();
     } catch (e) {
-      console.error("Failed to move note to inbox:", e);
+      toastError(`Failed to move note to inbox: ${String(e)}`);
     }
   };
 
@@ -564,7 +572,11 @@ export default function NoteDetail({
                 ) : (
                   <>
                     <button
-                      onClick={() => api.openAttachment(a.id).catch(console.error)}
+                      onClick={() =>
+                        api
+                          .openAttachment(a.id)
+                          .catch((e) => toastError(`Failed to open attachment: ${String(e)}`))
+                      }
                       className="text-dim hover:text-lo transition-colors select-none truncate max-w-36"
                       title={a.filename}
                     >

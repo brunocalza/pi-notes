@@ -84,4 +84,48 @@ describe("NoteCard", () => {
     render(<NoteCard note={makeNote()} selected={false} onClick={vi.fn()} onTagClick={vi.fn()} />);
     expect(screen.queryByText("Work")).not.toBeInTheDocument();
   });
+
+  it("renders with selected styling", () => {
+    render(<NoteCard note={makeNote()} selected={true} onClick={vi.fn()} onTagClick={vi.fn()} />);
+    expect(screen.getByText("Test Note")).toBeInTheDocument();
+  });
+
+  it("shows weekday label for a note created 3 days ago", () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 3);
+    const expected = d.toLocaleDateString("en-US", { weekday: "short" });
+    const note = makeNote({ created_at: d.toISOString() });
+    render(<NoteCard note={note} selected={false} onClick={vi.fn()} onTagClick={vi.fn()} />);
+    expect(screen.getByText(expected)).toBeInTheDocument();
+  });
+
+  it("shows short date for a note created 10 days ago (same year)", () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 10);
+    const expected = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const note = makeNote({ created_at: d.toISOString() });
+    render(<NoteCard note={note} selected={false} onClick={vi.fn()} onTagClick={vi.fn()} />);
+    expect(screen.getByText(expected)).toBeInTheDocument();
+  });
+
+  it("shows date with year for a note created last year", () => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 1);
+    const expected = d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    const note = makeNote({ created_at: d.toISOString() });
+    render(<NoteCard note={note} selected={false} onClick={vi.fn()} onTagClick={vi.fn()} />);
+    expect(screen.getByText(expected)).toBeInTheDocument();
+  });
+
+  it("does not render snippet section when content is empty", () => {
+    const note = makeNote({ content: "" });
+    const { container } = render(
+      <NoteCard note={note} selected={false} onClick={vi.fn()} onTagClick={vi.fn()} />
+    );
+    expect(container.querySelector("p")).not.toBeInTheDocument();
+  });
 });

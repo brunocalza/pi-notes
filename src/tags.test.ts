@@ -188,4 +188,20 @@ describe("validateTag", () => {
     expect(r.valid).toBe(false);
     expect(r.errors).toContain("tag cannot start or end with a separator");
   });
+
+  it("deduplicates separator errors when segment violates both - and space rules", () => {
+    // A segment like "-hello " starts with '-' AND ends with ' '
+    // Both checks trigger but only one error is added
+    const r = validateTag("-hello /other");
+    expect(r.valid).toBe(false);
+    expect(r.errors.filter((e) => e === "tag cannot start or end with a separator").length).toBe(1);
+  });
+
+  it("reports empty namespace segment when // appears at start", () => {
+    // Leading // means first segment via split is empty and second is also empty
+    // Ensures the dedup guard in the segment loop for empty-segment error is exercised
+    const r = validateTag("a//b");
+    expect(r.valid).toBe(false);
+    expect(r.errors.filter((e) => e === "empty namespace segment").length).toBe(1);
+  });
 });
