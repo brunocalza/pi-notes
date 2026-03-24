@@ -3,7 +3,9 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import { FileText } from "lucide-react";
+import rehypeHighlight from "rehype-highlight";
+import { all } from "lowlight";
+import { FileText, Bold, Italic, Code, Link2, List, Quote, Heading2 } from "lucide-react";
 import { api } from "../api";
 import { AttachmentMeta } from "../types";
 import DatePicker from "./DatePicker";
@@ -127,6 +129,32 @@ function getDateCommand(text: string, cursor: number): boolean {
   return /(^|\s)\/date$/.test(text.slice(0, cursor));
 }
 
+export type FormatType = "bold" | "italic" | "code" | "link" | "heading" | "blockquote" | "bullet";
+
+function ToolbarButton({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        onClick();
+      }}
+      className="flex items-center justify-center w-6 h-6 rounded text-ghost hover:text-lo hover:bg-raised transition-colors"
+    >
+      {icon}
+    </button>
+  );
+}
+
 interface Props {
   content: string;
   onCommit: (content: string) => void;
@@ -147,6 +175,11 @@ export default function BlockEditor({
   const taRef = useRef<HTMLTextAreaElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const lastCommitted = useRef(content);
+  const pendingCursorRef = useRef<number | null>(null);
+
+  // Undo / redo history
+  const historyRef = useRef<string[][]>([toBlocks(content)]);
+  const historyIdxRef = useRef(0);
 
   const [allTitles, setAllTitles] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -192,7 +225,9 @@ export default function BlockEditor({
       ta.style.height = "auto";
       ta.style.height = ta.scrollHeight + "px";
       ta.focus();
-      ta.setSelectionRange(ta.value.length, ta.value.length);
+      const pos = pendingCursorRef.current ?? ta.value.length;
+      pendingCursorRef.current = null;
+      ta.setSelectionRange(pos, pos);
     }
   }, [active]);
 
@@ -202,6 +237,53 @@ export default function BlockEditor({
       taRef.current.style.height = taRef.current.scrollHeight + "px";
     }
   };
+
+  const pushHistory = useCallback((newBlocks: string[]) => {
+    const current = historyRef.current[historyIdxRef.current];
+    if (JSON.stringify(current) === JSON.stringify(newBlocks)) return;
+    const truncated = historyRef.current.slice(0, historyIdxRef.current + 1);
+    truncated.push([...newBlocks]);
+    historyRef.current = truncated;
+    historyIdxRef.current = truncated.length - 1;
+  }, []);
+
+  const undo = useCallback(() => {
+    if (historyIdxRef.current <= 0) return;
+    historyIdxRef.current--;
+    const prev = [...historyRef.current[historyIdxRef.current]];
+    setBlocks(prev);
+    if (active !== null && active >= prev.length) setActive(null);
+    const newContent = fromBlocks(prev);
+    lastCommitted.current = newContent;
+    onCommit(newContent);
+  }, [active, onCommit]);
+
+  const redo = useCallback(() => {
+    if (historyIdxRef.current >= historyRef.current.length - 1) return;
+    historyIdxRef.current++;
+    const next = [...historyRef.current[historyIdxRef.current]];
+    setBlocks(next);
+    if (active !== null && active >= next.length) setActive(null);
+    const newContent = fromBlocks(next);
+    lastCommitted.current = newContent;
+    onCommit(newContent);
+  }, [active, onCommit]);
+
+  // Global Ctrl+Z / Ctrl+Shift+Z when no block is active
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (active !== null) return;
+      if (e.ctrlKey && !e.shiftKey && e.key === "z") {
+        e.preventDefault();
+        undo();
+      } else if ((e.ctrlKey && e.shiftKey && e.key === "Z") || (e.ctrlKey && e.key === "y")) {
+        e.preventDefault();
+        redo();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [active, undo, redo]);
 
   // Apply inline markdown wrapping or line prefix
   const applyMarkdown = useCallback(
@@ -223,10 +305,12 @@ export default function BlockEditor({
         const lineText = text.slice(lineStart);
         if (lineText.startsWith(prefix)) {
           nb[blockIdx] = text.slice(0, lineStart) + lineText.slice(prefix.length);
+          pushHistory(nb);
           setBlocks(nb);
           setTimeout(() => ta.setSelectionRange(start - prefix.length, end - prefix.length), 0);
         } else {
           nb[blockIdx] = text.slice(0, lineStart) + prefix + lineText;
+          pushHistory(nb);
           setBlocks(nb);
           setTimeout(() => ta.setSelectionRange(start + prefix.length, end + prefix.length), 0);
         }
@@ -241,6 +325,7 @@ export default function BlockEditor({
                 : ["[", "]()"]; // link
         const inserted = open + sel + close;
         nb[blockIdx] = text.slice(0, start) + inserted + text.slice(end);
+        pushHistory(nb);
         setBlocks(nb);
         const cursorOffset =
           type === "link" && sel.length === 0
@@ -259,7 +344,7 @@ export default function BlockEditor({
         taRef.current.style.height = taRef.current.scrollHeight + "px";
       }
     },
-    [blocks]
+    [blocks, pushHistory]
   );
 
   const commitWikilink = useCallback(
@@ -285,18 +370,27 @@ export default function BlockEditor({
     [blocks]
   );
 
-  const commitBlock = (i: number, value: string) => {
+  // Save block i without changing active — used when navigating between blocks
+  const saveBlock = (i: number, value: string): string[] => {
     setSuggestions([]);
     const sub = toBlocks(value);
     const merged = [...blocks.slice(0, i), ...sub, ...blocks.slice(i + 1)].filter((b) => b.trim());
-
     const final = merged.length > 0 ? merged : [""];
+    pushHistory(final);
     setBlocks(final);
-    setActive(null);
     const newContent = fromBlocks(final);
-    if (newContent === lastCommitted.current) return;
-    lastCommitted.current = newContent;
-    onCommit(newContent);
+    if (newContent !== lastCommitted.current) {
+      lastCommitted.current = newContent;
+      onCommit(newContent);
+    }
+    return final;
+  };
+
+  const commitBlock = (i: number, value: string) => {
+    const final = saveBlock(i, value);
+    // After a split, active block may have shifted — just deactivate
+    void final;
+    setActive(null);
   };
 
   const components = useMemo(
@@ -374,7 +468,47 @@ export default function BlockEditor({
     <div className="markdown-content">
       {blocks.map((block, i) =>
         active === i ? (
-          <div key={i} className="relative">
+          <div key={i} className="relative block-editing">
+            {/* Floating format toolbar */}
+            <div className="absolute right-0 -top-8 z-30 flex items-center gap-0.5 bg-field border bc-ui rounded-md shadow-lg px-1 py-0.5">
+              <ToolbarButton
+                icon={<Heading2 size={13} />}
+                label="Heading (Ctrl+Shift+H)"
+                onClick={() => applyMarkdown(i, "heading")}
+              />
+              <div className="w-px h-3 bg-raised mx-0.5 shrink-0" />
+              <ToolbarButton
+                icon={<Bold size={13} />}
+                label="Bold (Ctrl+B)"
+                onClick={() => applyMarkdown(i, "bold")}
+              />
+              <ToolbarButton
+                icon={<Italic size={13} />}
+                label="Italic (Ctrl+I)"
+                onClick={() => applyMarkdown(i, "italic")}
+              />
+              <ToolbarButton
+                icon={<Code size={13} />}
+                label="Inline code (Ctrl+`)"
+                onClick={() => applyMarkdown(i, "code")}
+              />
+              <ToolbarButton
+                icon={<Link2 size={13} />}
+                label="Link (Ctrl+K)"
+                onClick={() => applyMarkdown(i, "link")}
+              />
+              <div className="w-px h-3 bg-raised mx-0.5 shrink-0" />
+              <ToolbarButton
+                icon={<List size={13} />}
+                label="Bullet list (Ctrl+Shift+U)"
+                onClick={() => applyMarkdown(i, "bullet")}
+              />
+              <ToolbarButton
+                icon={<Quote size={13} />}
+                label="Blockquote (Ctrl+Shift+B)"
+                onClick={() => applyMarkdown(i, "blockquote")}
+              />
+            </div>
             <textarea
               ref={taRef}
               value={block}
@@ -467,12 +601,150 @@ export default function BlockEditor({
                   return;
                 }
 
+                // Undo / Redo
+                if (e.ctrlKey && !e.shiftKey && e.key === "z") {
+                  e.preventDefault();
+                  undo();
+                  return;
+                }
+                if ((e.ctrlKey && e.shiftKey && e.key === "Z") || (e.ctrlKey && e.key === "y")) {
+                  e.preventDefault();
+                  redo();
+                  return;
+                }
+
+                // Tab / Shift+Tab — indent / unindent
+                if (e.key === "Tab") {
+                  e.preventDefault();
+                  const ta = e.target as HTMLTextAreaElement;
+                  const start = ta.selectionStart;
+                  const end = ta.selectionEnd;
+                  const text = blocks[i];
+                  if (e.shiftKey) {
+                    const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+                    const spaces =
+                      text.slice(lineStart, lineStart + 2) === "  "
+                        ? 2
+                        : text[lineStart] === " "
+                          ? 1
+                          : 0;
+                    if (spaces > 0) {
+                      const nb = [...blocks];
+                      nb[i] = text.slice(0, lineStart) + text.slice(lineStart + spaces);
+                      pushHistory(nb);
+                      setBlocks(nb);
+                      resize();
+                      setTimeout(
+                        () =>
+                          ta.setSelectionRange(
+                            Math.max(lineStart, start - spaces),
+                            Math.max(lineStart, end - spaces)
+                          ),
+                        0
+                      );
+                    }
+                  } else {
+                    const nb = [...blocks];
+                    nb[i] = text.slice(0, start) + "  " + text.slice(end);
+                    pushHistory(nb);
+                    setBlocks(nb);
+                    resize();
+                    setTimeout(() => ta.setSelectionRange(start + 2, start + 2), 0);
+                  }
+                  return;
+                }
+
+                // Smart Enter — continue bullet / ordered lists
+                if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey) {
+                  const ta = e.target as HTMLTextAreaElement;
+                  const cursor = ta.selectionStart;
+                  const text = blocks[i];
+
+                  // Enter at position 0 — insert empty block above
+                  if (cursor === 0 && text.length > 0) {
+                    e.preventDefault();
+                    const nb = [...blocks.slice(0, i), "", ...blocks.slice(i)];
+                    pushHistory(nb);
+                    setBlocks(nb);
+                    setTimeout(() => {
+                      if (taRef.current) {
+                        taRef.current.style.height = "auto";
+                        taRef.current.style.height = taRef.current.scrollHeight + "px";
+                      }
+                    }, 0);
+                    return;
+                  }
+
+                  const lineStart = text.lastIndexOf("\n", cursor - 1) + 1;
+                  const lineText = text.slice(lineStart, cursor);
+                  const bulletMatch = lineText.match(/^(\s*)([-*]) /);
+                  const orderedMatch = lineText.match(/^(\s*)(\d+)\. /);
+                  const match = bulletMatch ?? orderedMatch;
+                  if (match) {
+                    const lineContent = lineText.slice(match[0].length);
+                    e.preventDefault();
+                    if (lineContent.trim() === "" && lineStart > 0) {
+                      // Empty list item — remove prefix and stop the list
+                      const nb = [...blocks];
+                      nb[i] = text.slice(0, lineStart) + text.slice(lineStart + match[0].length);
+                      pushHistory(nb);
+                      setBlocks(nb);
+                      resize();
+                      setTimeout(() => ta.setSelectionRange(lineStart, lineStart), 0);
+                    } else {
+                      // Continue the list
+                      const prefix = bulletMatch
+                        ? bulletMatch[1] + bulletMatch[2] + " "
+                        : orderedMatch![1] + String(parseInt(orderedMatch![2]) + 1) + ". ";
+                      const insert = "\n" + prefix;
+                      const nb = [...blocks];
+                      nb[i] = text.slice(0, cursor) + insert + text.slice(cursor);
+                      pushHistory(nb);
+                      setBlocks(nb);
+                      resize();
+                      setTimeout(() => {
+                        const pos = cursor + insert.length;
+                        ta.setSelectionRange(pos, pos);
+                      }, 0);
+                    }
+                    return;
+                  }
+                }
+
+                // Arrow Up at start → move to previous block (cursor at end)
+                if (e.key === "ArrowUp") {
+                  const ta = e.target as HTMLTextAreaElement;
+                  if (ta.selectionStart === 0 && ta.selectionEnd === 0 && i > 0) {
+                    e.preventDefault();
+                    saveBlock(i, blocks[i]);
+                    setActive(i - 1);
+                    return;
+                  }
+                }
+
+                // Arrow Down at end → move to next block (cursor at start)
+                if (e.key === "ArrowDown") {
+                  const ta = e.target as HTMLTextAreaElement;
+                  const atEnd =
+                    ta.selectionStart === ta.value.length && ta.selectionEnd === ta.value.length;
+                  if (atEnd && i < blocks.length - 1) {
+                    e.preventDefault();
+                    saveBlock(i, blocks[i]);
+                    pendingCursorRef.current = 0;
+                    setActive(i + 1);
+                    return;
+                  }
+                }
+
                 if (e.key === "Escape") (e.target as HTMLTextAreaElement).blur();
               }}
               className="w-full bg-transparent outline-none resize-none text-sm text-md leading-relaxed"
               style={{
-                fontFamily: '"Lora", Georgia, serif',
-                minHeight: "1.4em",
+                fontFamily: '"Source Serif 4 Variable", Georgia, "Times New Roman", serif',
+                fontOpticalSizing: "auto",
+                fontSize: "1rem",
+                lineHeight: "1.6",
+                minHeight: "1.6em",
                 overflow: "hidden",
               }}
               rows={1}
@@ -546,7 +818,7 @@ export default function BlockEditor({
           <div key={i} onClick={() => setActive(i)} className="cursor-text">
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkMath]}
-              rehypePlugins={[rehypeKatex]}
+              rehypePlugins={[rehypeKatex, [rehypeHighlight, { detect: true, languages: all }]]}
               urlTransform={urlTransform}
               components={components}
             >

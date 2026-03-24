@@ -35,7 +35,7 @@ describe("BlockEditor", () => {
     const textarea = screen.getByRole("textbox");
     await userEvent.clear(textarea);
     await userEvent.type(textarea, "Updated");
-    await userEvent.tab();
+    fireEvent.blur(textarea);
 
     await waitFor(() => {
       expect(onCommit).toHaveBeenCalledWith("Updated");
