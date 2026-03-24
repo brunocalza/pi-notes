@@ -137,3 +137,104 @@ impl CollectionReader for SqliteCollectionRepository {
         Ok(collections)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::ports::collection_reader::CollectionReader;
+    use crate::application::ports::collection_repository::CollectionRepository;
+    use crate::application::ports::note_repository::NoteRepository;
+    use crate::domain::collection::Collection;
+    use crate::domain::note::Note;
+    use crate::infrastructure::note_repository::{test_db, SqliteNoteRepository};
+
+    fn setup() -> (SqliteCollectionRepository, SqliteNoteRepository) {
+        let db = test_db();
+        (
+            SqliteCollectionRepository::new(Arc::clone(&db)),
+            SqliteNoteRepository::new(Arc::clone(&db)),
+        )
+    }
+
+    #[test]
+    fn save_and_list() {
+        let (repo, _) = setup();
+        let c = Collection::create("Books".into());
+        repo.save(&c).unwrap();
+        let list = repo.list_collections().unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].name, "Books");
+    }
+
+    #[test]
+    fn duplicate_name_returns_error() {
+        let (repo, _) = setup();
+        let c1 = Collection::create("Books".into());
+        let c2 = Collection::create("Books".into());
+        repo.save(&c1).unwrap();
+        let err = repo.save(&c2).unwrap_err();
+        assert!(matches!(
+            err,
+            crate::domain::error::DomainError::DuplicateName(_)
+        ));
+    }
+
+    #[test]
+    fn delete_collection() {
+        let (repo, _) = setup();
+        let c = Collection::create("Temp".into());
+        repo.save(&c).unwrap();
+        repo.delete(&c.id).unwrap();
+        let list = repo.list_collections().unwrap();
+        assert!(list.is_empty());
+    }
+
+    #[test]
+    fn rename_collection() {
+        let (repo, _) = setup();
+        let c = Collection::create("Old Name".into());
+        repo.save(&c).unwrap();
+        repo.rename(&c.id, "New Name").unwrap();
+        let list = repo.list_collections().unwrap();
+        assert_eq!(list[0].name, "New Name");
+    }
+
+    #[test]
+    fn rename_to_duplicate_returns_error() {
+        let (repo, _) = setup();
+        let c1 = Collection::create("Alpha".into());
+        let c2 = Collection::create("Beta".into());
+        repo.save(&c1).unwrap();
+        repo.save(&c2).unwrap();
+        let err = repo.rename(&c2.id, "Alpha").unwrap_err();
+        assert!(matches!(
+            err,
+            crate::domain::error::DomainError::DuplicateName(_)
+        ));
+    }
+
+    #[test]
+    fn set_note_collection_assigns_and_clears() {
+        let (col_repo, note_repo) = setup();
+        let c = Collection::create("Archive".into());
+        col_repo.save(&c).unwrap();
+        let note = Note::create("N".into(), "c".into(), vec![]);
+        note_repo.save(&note).unwrap();
+        col_repo.set_note_collection(&note.id, Some(&c.id)).unwrap();
+        // verify via list_collections note_count (counts non-trashed notes regardless of inbox)
+        let list = col_repo.list_collections().unwrap();
+        assert_eq!(list[0].note_count, 1);
+        col_repo.set_note_collection(&note.id, None).unwrap();
+    }
+
+    #[test]
+    fn list_collections_sorted_by_name() {
+        let (repo, _) = setup();
+        repo.save(&Collection::create("Zebra".into())).unwrap();
+        repo.save(&Collection::create("Alpha".into())).unwrap();
+        repo.save(&Collection::create("Middle".into())).unwrap();
+        let list = repo.list_collections().unwrap();
+        let names: Vec<&str> = list.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, vec!["Alpha", "Middle", "Zebra"]);
+    }
+}

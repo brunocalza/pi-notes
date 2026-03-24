@@ -79,6 +79,14 @@ fn map_err(e: impl std::fmt::Display) -> DomainError {
     DomainError::StorageError(e.to_string())
 }
 
+#[cfg(test)]
+pub(crate) fn test_db() -> Arc<Mutex<Connection>> {
+    let conn = Connection::open_in_memory().unwrap();
+    conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+    crate::infrastructure::schema::apply_schema(&conn).unwrap();
+    Arc::new(Mutex::new(conn))
+}
+
 impl NoteRepository for SqliteNoteRepository {
     fn save(&self, note: &Note) -> Result<(), DomainError> {
         let mut conn = self.conn.lock().map_err(map_err)?;
@@ -152,5 +160,163 @@ impl NoteRepository for SqliteNoteRepository {
         )
         .map_err(map_err)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::ports::note_reader::NoteReader;
+    use crate::application::ports::note_repository::NoteRepository;
+    use crate::domain::{note::Note, tag::Tag};
+    use crate::infrastructure::sqlite_reader::SqliteNoteReader;
+
+    fn repo() -> (SqliteNoteRepository, SqliteNoteReader) {
+        let db = test_db();
+        (
+            SqliteNoteRepository::new(Arc::clone(&db)),
+            SqliteNoteReader::new(db),
+        )
+    }
+
+    fn note(title: &str) -> Note {
+        Note::create(title.into(), "content".into(), vec![])
+    }
+
+    #[test]
+    fn save_and_get() {
+        let (repo, reader) = repo();
+        let n = note("Hello");
+        repo.save(&n).unwrap();
+        let found = reader.get_note(n.id.clone()).unwrap().unwrap();
+        assert_eq!(found.title, "Hello");
+        assert!(found.in_inbox);
+        assert!(!found.trashed);
+    }
+
+    #[test]
+    fn save_updates_existing() {
+        let (repo, reader) = repo();
+        let mut n = note("Original");
+        repo.save(&n).unwrap();
+        n.apply_edit("Updated".into(), "new content".into(), vec![]);
+        repo.save(&n).unwrap();
+        let found = reader.get_note(n.id.clone()).unwrap().unwrap();
+        assert_eq!(found.title, "Updated");
+    }
+
+    #[test]
+    fn save_persists_tags() {
+        let (repo, reader) = repo();
+        let tags = vec![Tag::parse("rust").unwrap(), Tag::parse("dev").unwrap()];
+        let n = Note::create("Tagged".into(), "c".into(), tags);
+        repo.save(&n).unwrap();
+        let found = reader.get_note(n.id.clone()).unwrap().unwrap();
+        let mut tag_strs: Vec<&str> = found.tags.iter().map(Tag::as_str).collect();
+        tag_strs.sort();
+        assert_eq!(tag_strs, vec!["dev", "rust"]);
+    }
+
+    #[test]
+    fn save_replaces_tags_on_update() {
+        let (repo, reader) = repo();
+        let mut n = Note::create("T".into(), "c".into(), vec![Tag::parse("old").unwrap()]);
+        repo.save(&n).unwrap();
+        n.apply_edit("T".into(), "c".into(), vec![Tag::parse("new").unwrap()]);
+        repo.save(&n).unwrap();
+        let found = reader.get_note(n.id.clone()).unwrap().unwrap();
+        let strs: Vec<&str> = found.tags.iter().map(Tag::as_str).collect();
+        assert_eq!(strs, vec!["new"]);
+    }
+
+    #[test]
+    fn delete_removes_note() {
+        let (repo, reader) = repo();
+        let n = note("Delete me");
+        repo.save(&n).unwrap();
+        repo.delete(&n.id).unwrap();
+        assert!(reader.get_note(n.id.clone()).unwrap().is_none());
+    }
+
+    #[test]
+    fn trash_and_restore() {
+        let (repo, reader) = repo();
+        let n = note("Trash me");
+        repo.save(&n).unwrap();
+        repo.trash(&n.id).unwrap();
+        let trashed = reader.get_note(n.id.clone()).unwrap().unwrap();
+        assert!(trashed.trashed);
+        repo.restore(&n.id).unwrap();
+        let restored = reader.get_note(n.id.clone()).unwrap().unwrap();
+        assert!(!restored.trashed);
+    }
+
+    #[test]
+    fn accept_clears_inbox_flag() {
+        let (repo, reader) = repo();
+        let n = note("Accept me");
+        repo.save(&n).unwrap();
+        assert!(reader.get_note(n.id.clone()).unwrap().unwrap().in_inbox);
+        repo.accept(&n.id).unwrap();
+        assert!(!reader.get_note(n.id.clone()).unwrap().unwrap().in_inbox);
+    }
+
+    #[test]
+    fn move_to_inbox_sets_flag_and_untrashes() {
+        let (repo, reader) = repo();
+        let n = note("Move me");
+        repo.save(&n).unwrap();
+        repo.trash(&n.id).unwrap();
+        repo.accept(&n.id).unwrap();
+        repo.move_to_inbox(&n.id).unwrap();
+        let found = reader.get_note(n.id.clone()).unwrap().unwrap();
+        assert!(found.in_inbox);
+        assert!(!found.trashed);
+    }
+
+    #[test]
+    fn empty_trash_removes_trashed_notes() {
+        let (repo, reader) = repo();
+        let a = note("Keep");
+        let b = note("Trash me");
+        repo.save(&a).unwrap();
+        repo.save(&b).unwrap();
+        repo.trash(&b.id).unwrap();
+        repo.empty_trash().unwrap();
+        assert!(reader.get_note(a.id.clone()).unwrap().is_some());
+        assert!(reader.get_note(b.id.clone()).unwrap().is_none());
+    }
+
+    #[test]
+    fn set_image_stores_path() {
+        let (repo, reader) = repo();
+        let n = note("Img");
+        repo.save(&n).unwrap();
+        repo.set_image(&n.id, "/tmp/photo.png").unwrap();
+        let found = reader.get_note(n.id.clone()).unwrap().unwrap();
+        assert_eq!(found.image_path.as_deref(), Some("/tmp/photo.png"));
+    }
+
+    #[test]
+    fn save_extracts_dates_from_content() {
+        let db = test_db();
+        let repo = SqliteNoteRepository::new(Arc::clone(&db));
+        let reader = SqliteNoteReader::new(Arc::clone(&db));
+        let n = Note::create(
+            "D".into(),
+            "event on 2024-01-20 and 2024-07-04".into(),
+            vec![],
+        );
+        repo.save(&n).unwrap();
+        repo.accept(&n.id).unwrap();
+        use crate::application::ports::note_reader::NoteReader;
+        use crate::application::queries::note::GetNotesByDate;
+        let results = reader
+            .get_notes_by_date(GetNotesByDate {
+                date: "2024-01-20".into(),
+            })
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, n.id);
     }
 }

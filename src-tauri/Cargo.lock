@@ -2406,7 +2406,6 @@ dependencies = [
  "dirs 5.0.1",
  "rusqlite",
  "serde",
- "serde_json",
  "tauri",
  "tauri-build",
  "uuid",

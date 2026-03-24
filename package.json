@@ -20,7 +20,8 @@
     "format:check": "prettier --check 'src/**/*.{ts,tsx}' 'e2e/**/*.ts'",
     "lint:rust": "cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings",
     "format:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml",
-    "format:rust:check": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check"
+    "format:rust:check": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check",
+    "coverage:rust": "cargo llvm-cov --manifest-path src-tauri/Cargo.toml --lib --html --output-dir coverage-rust --ignore-filename-regex '(ipc/commands|lib)\\.rs'"
   },
   "dependencies": {
     "@fontsource-variable/nunito": "^5.2.7",
