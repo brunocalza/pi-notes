@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "../test/render";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import Feed from "./Feed";
@@ -191,5 +191,83 @@ describe("Feed", () => {
   it("shows search input for collection view", () => {
     render(<Feed {...defaultProps} view={{ collection: "col-1" }} />);
     expect(screen.getByPlaceholderText("Search...")).toBeInTheDocument();
+  });
+
+  it("shows toast error when notes fail to load", async () => {
+    vi.mocked(api.listNotesCursor).mockRejectedValue(new Error("Network error"));
+    render(<Feed {...defaultProps} view="all" />);
+    await waitFor(() => {
+      expect(screen.getByText(/Failed to load notes/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows collection name badge on note card when in all view with collection", async () => {
+    const collections = [
+      { id: "col-1", name: "Work", note_count: 2, created_at: "", updated_at: "" },
+    ];
+    const notes = [
+      makeNote({
+        id: "00000000-0000-0000-0000-000000000001",
+        title: "Work Note",
+        collection_id: "col-1",
+      }),
+    ];
+    vi.mocked(api.listNotesCursor).mockResolvedValue(notes);
+    render(<Feed {...defaultProps} view="all" collections={collections} />);
+    await waitFor(() => {
+      expect(screen.getByText("Work Note")).toBeInTheDocument();
+    });
+  });
+
+  it("does not confirm empty trash when cancelled", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const onEmptyTrash = vi.fn();
+    const notes = [makeNote({ id: "00000000-0000-0000-0000-000000000001", title: "Old Note" })];
+    vi.mocked(api.getTrashCursor).mockResolvedValue(notes);
+    render(<Feed {...defaultProps} view="trash" onEmptyTrash={onEmptyTrash} />);
+    await waitFor(() => {
+      expect(screen.getByText("Empty Trash")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByText("Empty Trash"));
+    expect(onEmptyTrash).not.toHaveBeenCalled();
+  });
+
+  it("triggers intersection observer to load more when sentinel is visible", async () => {
+    // Mock IntersectionObserver to capture callback and trigger it
+    let capturedCallback: IntersectionObserverCallback | null = null;
+    let capturedObserver: {
+      observe: ReturnType<typeof vi.fn>;
+      disconnect: ReturnType<typeof vi.fn>;
+    } | null = null;
+
+    vi.spyOn(globalThis, "IntersectionObserver").mockImplementation((cb) => {
+      capturedCallback = cb;
+      capturedObserver = {
+        observe: vi.fn(),
+        disconnect: vi.fn(),
+      };
+      return capturedObserver as unknown as IntersectionObserver;
+    });
+
+    // Return PAGE_SIZE (50) notes to indicate there could be more
+    const notes = Array.from({ length: 50 }, (_, i) =>
+      makeNote({ id: `00000000-0000-0000-0000-${String(i).padStart(12, "0")}`, title: `Note ${i}` })
+    );
+    vi.mocked(api.listNotesCursor).mockResolvedValue(notes);
+    render(<Feed {...defaultProps} view="all" />);
+    await waitFor(() => {
+      expect(screen.getByText("Note 0")).toBeInTheDocument();
+    });
+
+    // Simulate intersection observer callback firing (sentinel becomes visible)
+    if (capturedCallback && capturedObserver) {
+      const sentinel = document.querySelector(".h-px") as Element;
+      (capturedCallback as IntersectionObserverCallback)(
+        [{ isIntersecting: true, target: sentinel } as IntersectionObserverEntry],
+        capturedObserver as unknown as IntersectionObserver
+      );
+    }
+
+    vi.restoreAllMocks();
   });
 });

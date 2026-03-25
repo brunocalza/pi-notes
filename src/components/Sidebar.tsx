@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { api } from "../api";
+import { useToast } from "../hooks/useToast";
 import {
   Inbox,
   FileText,
@@ -96,6 +97,7 @@ export default function Sidebar({
   onColorThemeChange,
   onDbPathChange,
 }: Props) {
+  const { error: toastError } = useToast();
   const [tagSearch, setTagSearch] = useState("");
   const [renameTag, setRenameTag] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -139,9 +141,9 @@ export default function Sidebar({
           setDbPathInput(p);
           setDbPathError("");
         })
-        .catch(console.error);
+        .catch((e) => toastError(`Failed to load settings: ${String(e)}`));
     }
-  }, [settingsOpen]);
+  }, [settingsOpen, toastError]);
 
   const handleDbPathSave = async () => {
     if (dbPathInput === dbPath) return;
@@ -227,7 +229,7 @@ export default function Sidebar({
       await api.renameTag(oldTag, renameValue.trim());
       onTagRename();
     } catch (e) {
-      console.error(e);
+      toastError(`Failed to rename tag: ${String(e)}`);
     }
     setRenameTag(null);
   };
@@ -237,7 +239,7 @@ export default function Sidebar({
       await api.deleteTag(tag);
       onTagDelete();
     } catch (e) {
-      console.error(e);
+      toastError(`Failed to delete tag: ${String(e)}`);
     }
   };
 

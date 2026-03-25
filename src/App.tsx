@@ -4,8 +4,10 @@ import { api } from "./api";
 import Sidebar from "./components/Sidebar";
 import Feed from "./components/Feed";
 import NoteDetail from "./components/NoteDetail";
+import { useToast } from "./hooks/useToast";
 
 export default function App() {
+  const { error: toastError } = useToast();
   const [view, setView] = useState<View>("all");
   const [tags, setTags] = useState<TagEntry[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -45,9 +47,9 @@ export default function App() {
       setInboxCount(inbox.length);
       setCollections(allCollections);
     } catch (e) {
-      console.error("Failed to load sidebar:", e);
+      toastError(`Failed to load sidebar: ${String(e)}`);
     }
-  }, []);
+  }, [toastError]);
 
   useEffect(() => {
     loadSidebar();
@@ -71,9 +73,9 @@ export default function App() {
       setFocusNewNote(true);
       setSelectedNoteId(id);
     } catch (e) {
-      console.error("Failed to create note:", e);
+      toastError(`Failed to create note: ${String(e)}`);
     }
-  }, [loadSidebar, view]);
+  }, [loadSidebar, toastError, view]);
 
   // Stale-closure-safe refs for global shortcuts — notes updated via onNotesChange
   const stateRef = useRef({ selectedNoteId, notes: [] as Note[], view });
@@ -155,14 +157,14 @@ export default function App() {
               setSelectedNoteId(null);
               refresh();
             })
-            .catch(console.error);
+            .catch((e) => toastError(`Failed to trash note: ${String(e)}`));
         }
         return;
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [handleAddNote, refresh]);
+  }, [handleAddNote, refresh, toastError]);
 
   const handleViewChange = (v: View) => {
     setView(v);

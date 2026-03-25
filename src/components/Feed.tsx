@@ -3,6 +3,7 @@ import { Plus, Search, Trash2 } from "lucide-react";
 import { Collection, Note, View } from "../types";
 import { api, Cursor } from "../api";
 import NoteCard from "./NoteCard";
+import { useToast } from "../hooks/useToast";
 
 const PAGE_SIZE = 50;
 
@@ -77,6 +78,7 @@ export default function Feed({
   onEmptyTrash,
   onNotesChange,
 }: Props) {
+  const { error: toastError } = useToast();
   const searchRef = useRef<HTMLInputElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const showSearch =
@@ -127,7 +129,7 @@ export default function Feed({
         onNotesChange(newNotes);
       } catch (e) {
         if (cancelRef.current !== token) return;
-        console.error("Failed to load notes:", e);
+        toastError(`Failed to load notes: ${String(e)}`);
       } finally {
         if (cancelRef.current === token) {
           loadingRef.current = false;
@@ -135,7 +137,7 @@ export default function Feed({
         }
       }
     },
-    [onNotesChange]
+    [onNotesChange, toastError]
   );
 
   // Reset and reload when view / searchQuery / refreshKey change
