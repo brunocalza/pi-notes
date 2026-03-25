@@ -1,7 +1,7 @@
 {
   "productName": "PI Notes",
   "version": "0.0.1",
-  "identifier": "com.pi-notes.app",
+  "identifier": "com.pi-notes",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",

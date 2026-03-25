@@ -23,11 +23,11 @@ jobs:
             rust_target: x86_64-unknown-linux-gnu
             bundles: deb,rpm,appimage
             rustflags: "-C linker=zigcc"
-          - platform: macos-latest
-            rust_target: aarch64-apple-darwin
-            bundles: dmg,app
-            rustflags: ""
-            macos_deployment_target: "12.0"
+          # - platform: macos-latest
+          #   rust_target: aarch64-apple-darwin
+          #   bundles: dmg,app
+          #   rustflags: ""
+          #   macos_deployment_target: "12.0"
           - platform: windows-latest
             rust_target: x86_64-pc-windows-msvc
             bundles: nsis
