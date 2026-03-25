@@ -355,10 +355,14 @@ impl NoteReader for SqliteNoteReader {
         if title.is_empty() {
             return Ok(vec![]);
         }
-        let pattern = format!("%[[{title}]]%");
+        let escaped_title = title
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_");
+        let pattern = format!("%[[{escaped_title}]]%");
         let sql = format!(
             "{SELECT}
-             WHERE n.id != ?2 AND n.trashed = 0 AND n.content LIKE ?1
+             WHERE n.id != ?2 AND n.trashed = 0 AND n.content LIKE ?1 ESCAPE '\\'
              GROUP BY n.id
              ORDER BY n.updated_at DESC"
         );
