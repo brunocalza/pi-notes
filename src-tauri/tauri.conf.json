@@ -1,6 +1,6 @@
 {
   "productName": "PI Notes",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "identifier": "com.pi-notes.app",
   "build": {
     "frontendDist": "../dist",
