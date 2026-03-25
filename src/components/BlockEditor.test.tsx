@@ -27,14 +27,14 @@ describe("BlockEditor", () => {
   it("activates a textarea when a block is clicked", async () => {
     render(<BlockEditor content="Click me" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("Click me"));
-    expect(screen.getByRole("textbox")).toHaveValue("Click me");
+    expect(screen.getByRole("textbox") as HTMLTextAreaElement).toHaveValue("Click me");
   });
 
   it("calls onCommit with updated content when textarea loses focus", async () => {
     render(<BlockEditor content="Original" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("Original"));
 
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     await userEvent.clear(textarea);
     await userEvent.type(textarea, "Updated");
     fireEvent.blur(textarea);
@@ -71,7 +71,7 @@ describe("BlockEditor", () => {
     await waitFor(() => {});
 
     await userEvent.click(screen.getByText("Start"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     // fireEvent.change bypasses userEvent's key-escaping for `[`
     fireEvent.change(textarea, { target: { value: "[[Target", selectionStart: 8 } });
 
@@ -83,7 +83,7 @@ describe("BlockEditor", () => {
   it("shows DatePicker when /date command is typed in edit mode", async () => {
     render(<BlockEditor content="Start" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("Start"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "/date", selectionStart: 5 } });
     await waitFor(() => {
       expect(screen.getByText("Su")).toBeInTheDocument();
@@ -148,15 +148,15 @@ describe("BlockEditor", () => {
   it("deactivates block on Escape", async () => {
     render(<BlockEditor content="Hello" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("Hello"));
-    expect(screen.getByRole("textbox")).toBeInTheDocument();
-    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" });
+    expect(screen.getByRole("textbox") as HTMLTextAreaElement).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("textbox") as HTMLTextAreaElement, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("textbox")).not.toBeInTheDocument());
   });
 
   it("applies bold formatting via toolbar button", async () => {
     render(<BlockEditor content="Hello" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("Hello"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 5);
     fireEvent.mouseDown(screen.getByTitle("Bold (Ctrl+B)"));
     await waitFor(() => expect(textarea).toHaveValue("**Hello**"));
@@ -165,7 +165,7 @@ describe("BlockEditor", () => {
   it("applies italic formatting via Ctrl+I shortcut", async () => {
     render(<BlockEditor content="Text" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("Text"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 4);
     fireEvent.keyDown(textarea, { key: "i", ctrlKey: true, shiftKey: false });
     await waitFor(() => expect(textarea).toHaveValue("*Text*"));
@@ -174,7 +174,7 @@ describe("BlockEditor", () => {
   it("applies bold via Ctrl+B shortcut", async () => {
     render(<BlockEditor content="Word" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("Word"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 4);
     fireEvent.keyDown(textarea, { key: "b", ctrlKey: true, shiftKey: false });
     await waitFor(() => expect(textarea).toHaveValue("**Word**"));
@@ -183,7 +183,7 @@ describe("BlockEditor", () => {
   it("applies inline code via Ctrl+` shortcut", async () => {
     render(<BlockEditor content="code" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("code"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 4);
     fireEvent.keyDown(textarea, { key: "`", ctrlKey: true, shiftKey: false });
     await waitFor(() => expect(textarea).toHaveValue("`code`"));
@@ -192,7 +192,7 @@ describe("BlockEditor", () => {
   it("applies heading via toolbar button", async () => {
     render(<BlockEditor content="Title" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("Title"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 0);
     fireEvent.mouseDown(screen.getByTitle("Heading (Ctrl+Shift+H)"));
     await waitFor(() => expect(textarea).toHaveValue("## Title"));
@@ -201,7 +201,7 @@ describe("BlockEditor", () => {
   it("applies bullet list via toolbar button", async () => {
     render(<BlockEditor content="item" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("item"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 0);
     fireEvent.mouseDown(screen.getByTitle("Bullet list (Ctrl+Shift+U)"));
     await waitFor(() => expect(textarea).toHaveValue("- item"));
@@ -210,7 +210,7 @@ describe("BlockEditor", () => {
   it("Tab key inserts two spaces", async () => {
     render(<BlockEditor content="text" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("text"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 0);
     fireEvent.keyDown(textarea, { key: "Tab" });
     await waitFor(() => expect(textarea).toHaveValue("  text"));
@@ -221,7 +221,7 @@ describe("BlockEditor", () => {
     render(<BlockEditor content="Start" onCommit={onCommit} onNavigate={onNavigate} />);
     await waitFor(() => {});
     await userEvent.click(screen.getByText("Start"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "[[Target", selectionStart: 8 } });
     await waitFor(() => screen.getByText("Target Note"));
     fireEvent.keyDown(textarea, { key: "Escape" });
@@ -233,7 +233,7 @@ describe("BlockEditor", () => {
     render(<BlockEditor content="Start" onCommit={onCommit} onNavigate={onNavigate} />);
     await waitFor(() => {});
     await userEvent.click(screen.getByText("Start"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "[[", selectionStart: 2 } });
     await waitFor(() => screen.getByText("My Page"));
     fireEvent.keyDown(textarea, { key: "Enter" });
@@ -245,7 +245,7 @@ describe("BlockEditor", () => {
     render(<BlockEditor content="Begin" onCommit={onCommit} onNavigate={onNavigate} />);
     await waitFor(() => {});
     await userEvent.click(screen.getByText("Begin"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "[[My", selectionStart: 4 } });
     await waitFor(() => screen.getByText("My Note"));
     fireEvent.mouseDown(screen.getByText("My Note"));
@@ -257,7 +257,7 @@ describe("BlockEditor", () => {
     render(<BlockEditor content="Start" onCommit={onCommit} onNavigate={onNavigate} />);
     await waitFor(() => {});
     await userEvent.click(screen.getByText("Start"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "[[", selectionStart: 2 } });
     await waitFor(() => screen.getByText("Alpha"));
     fireEvent.keyDown(textarea, { key: "ArrowDown" });
@@ -268,21 +268,21 @@ describe("BlockEditor", () => {
     render(<BlockEditor content="Hello" onCommit={onCommit} onNavigate={onNavigate} />);
     const bottomArea = document.querySelector(".min-h-12")!;
     await userEvent.click(bottomArea as HTMLElement);
-    expect(screen.getByRole("textbox")).toBeInTheDocument();
-    expect(screen.getByRole("textbox")).toHaveValue("");
+    expect(screen.getByRole("textbox") as HTMLTextAreaElement).toBeInTheDocument();
+    expect(screen.getByRole("textbox") as HTMLTextAreaElement).toHaveValue("");
   });
 
   it("activates last block when clicking bottom area and last block is empty", async () => {
     render(<BlockEditor content="" onCommit={onCommit} onNavigate={onNavigate} />);
     const bottomArea = document.querySelector(".min-h-12")!;
     await userEvent.click(bottomArea as HTMLElement);
-    expect(screen.getByRole("textbox")).toBeInTheDocument();
+    expect(screen.getByRole("textbox") as HTMLTextAreaElement).toBeInTheDocument();
   });
 
   it("calls onCommit when block loses focus with changed content", async () => {
     render(<BlockEditor content="First" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("First"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "Updated" } });
     fireEvent.blur(textarea);
     await waitFor(() => expect(onCommit).toHaveBeenCalledWith("Updated"));
@@ -291,7 +291,7 @@ describe("BlockEditor", () => {
   it("applies blockquote via Ctrl+Shift+B shortcut", async () => {
     render(<BlockEditor content="quote" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("quote"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 0);
     fireEvent.keyDown(textarea, { key: "B", ctrlKey: true, shiftKey: true });
     await waitFor(() => expect(textarea).toHaveValue("> quote"));
@@ -300,7 +300,7 @@ describe("BlockEditor", () => {
   it("applies link formatting via Ctrl+K shortcut", async () => {
     render(<BlockEditor content="link" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("link"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 4);
     fireEvent.keyDown(textarea, { key: "k", ctrlKey: true, shiftKey: false });
     await waitFor(() => expect(textarea).toHaveValue("[link]()"));
@@ -309,7 +309,7 @@ describe("BlockEditor", () => {
   it("smart Enter continues bullet list", async () => {
     render(<BlockEditor content="- item" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText(/item/));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(6, 6);
     fireEvent.keyDown(textarea, { key: "Enter" });
     await waitFor(() => {
@@ -320,7 +320,7 @@ describe("BlockEditor", () => {
   it("smart Enter at position 0 inserts empty block above", async () => {
     render(<BlockEditor content="content" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("content"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 0);
     fireEvent.keyDown(textarea, { key: "Enter" });
     await waitFor(() => {
@@ -332,7 +332,7 @@ describe("BlockEditor", () => {
     // Use the toolbar to create a history entry (bold adds to history via pushHistory)
     render(<BlockEditor content="hello" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("hello"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 5);
     // Apply bold via toolbar (calls pushHistory)
     fireEvent.mouseDown(screen.getByTitle("Bold (Ctrl+B)"));
@@ -347,7 +347,7 @@ describe("BlockEditor", () => {
   it("Ctrl+Y redoes after undo via toolbar", async () => {
     render(<BlockEditor content="word" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("word"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 4);
     // Apply bold (pushes to history)
     fireEvent.mouseDown(screen.getByTitle("Bold (Ctrl+B)"));
@@ -366,7 +366,7 @@ describe("BlockEditor", () => {
   it("Shift+Tab unindents a line", async () => {
     render(<BlockEditor content="  item" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText(/item/));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(2, 2);
     fireEvent.keyDown(textarea, { key: "Tab", shiftKey: true });
     await waitFor(() => {
@@ -383,13 +383,13 @@ describe("BlockEditor", () => {
       />
     );
     await userEvent.click(screen.getByText("First paragraph"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     expect(textarea).toHaveValue("First paragraph");
     const len = textarea.value.length;
     textarea.setSelectionRange(len, len);
     fireEvent.keyDown(textarea, { key: "ArrowDown" });
     await waitFor(() => {
-      const ta = screen.getByRole("textbox");
+      const ta = screen.getByRole("textbox") as HTMLTextAreaElement;
       expect(ta).toHaveValue("Second paragraph");
     });
   });
@@ -403,12 +403,12 @@ describe("BlockEditor", () => {
       />
     );
     await userEvent.click(screen.getByText("Second paragraph"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     expect(textarea).toHaveValue("Second paragraph");
     textarea.setSelectionRange(0, 0);
     fireEvent.keyDown(textarea, { key: "ArrowUp" });
     await waitFor(() => {
-      const ta = screen.getByRole("textbox");
+      const ta = screen.getByRole("textbox") as HTMLTextAreaElement;
       expect(ta).toHaveValue("First paragraph");
     });
   });
@@ -416,7 +416,7 @@ describe("BlockEditor", () => {
   it("selects date from DatePicker and calls onCommit", async () => {
     render(<BlockEditor content="Start" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("Start"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "/date", selectionStart: 5 } });
     await waitFor(() => {
       expect(screen.getByText("Su")).toBeInTheDocument();
@@ -453,7 +453,7 @@ describe("BlockEditor", () => {
     render(<BlockEditor content="Start" onCommit={onCommit} onNavigate={onNavigate} />);
     await waitFor(() => {});
     await userEvent.click(screen.getByText("Start"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "[[", selectionStart: 2 } });
     await waitFor(() => screen.getByText("Alpha"));
     // Go down first, then up
@@ -465,7 +465,7 @@ describe("BlockEditor", () => {
   it("applies Ctrl+Shift+U bullet list shortcut", async () => {
     render(<BlockEditor content="item" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("item"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 0);
     fireEvent.keyDown(textarea, { key: "U", ctrlKey: true, shiftKey: true });
     await waitFor(() => expect(textarea).toHaveValue("- item"));
@@ -474,7 +474,7 @@ describe("BlockEditor", () => {
   it("applies Ctrl+Shift+H heading shortcut", async () => {
     render(<BlockEditor content="heading" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("heading"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 0);
     fireEvent.keyDown(textarea, { key: "H", ctrlKey: true, shiftKey: true });
     await waitFor(() => expect(textarea).toHaveValue("## heading"));
@@ -483,7 +483,7 @@ describe("BlockEditor", () => {
   it("closes DatePicker with Escape key", async () => {
     render(<BlockEditor content="Start" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("Start"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "/date", selectionStart: 5 } });
     await waitFor(() => {
       expect(screen.getByText("Su")).toBeInTheDocument();
@@ -498,7 +498,7 @@ describe("BlockEditor", () => {
     render(<BlockEditor content="text" onCommit={onCommit} onNavigate={onNavigate} />);
     // Click and change content
     await userEvent.click(screen.getByText("text"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "modified" } });
     fireEvent.blur(textarea);
     await waitFor(() => expect(onCommit).toHaveBeenCalled());
@@ -513,7 +513,7 @@ describe("BlockEditor", () => {
   it("smart Enter continues ordered list", async () => {
     render(<BlockEditor content="1. first item" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText(/first item/));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     const len = textarea.value.length;
     textarea.setSelectionRange(len, len);
     fireEvent.keyDown(textarea, { key: "Enter" });
@@ -525,7 +525,7 @@ describe("BlockEditor", () => {
   it("smart Enter on empty list item removes the prefix", async () => {
     render(<BlockEditor content="- item" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText(/item/));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     // Continue list first: press Enter at end of "- item" to create "- item\n- "
     const len = textarea.value.length;
     textarea.setSelectionRange(len, len);
@@ -547,7 +547,7 @@ describe("BlockEditor", () => {
   it("applies link formatting via toolbar button (cursor at start of selection)", async () => {
     render(<BlockEditor content="text" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("text"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     // Apply link with no selection (empty selection) to hit the cursor branch
     textarea.setSelectionRange(0, 0);
     fireEvent.mouseDown(screen.getByTitle("Link (Ctrl+K)"));
@@ -559,7 +559,7 @@ describe("BlockEditor", () => {
     render(<BlockEditor content="Start" onCommit={onCommit} onNavigate={onNavigate} />);
     await waitFor(() => {});
     await userEvent.click(screen.getByText("Start"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "[[", selectionStart: 2 } });
     await waitFor(() => screen.getByText("Alpha"));
     // Hover over Beta to change active index
@@ -572,7 +572,7 @@ describe("BlockEditor", () => {
   it("Shift+Tab unindents single space indented line", async () => {
     render(<BlockEditor content=" item" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText(/item/));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(1, 1);
     fireEvent.keyDown(textarea, { key: "Tab", shiftKey: true });
     await waitFor(() => {
@@ -583,7 +583,7 @@ describe("BlockEditor", () => {
   it("applies blockquote via toolbar button", async () => {
     render(<BlockEditor content="text" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("text"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 0);
     fireEvent.mouseDown(screen.getByTitle("Blockquote (Ctrl+Shift+B)"));
     await waitFor(() => expect(textarea).toHaveValue("> text"));
@@ -592,7 +592,7 @@ describe("BlockEditor", () => {
   it("applies italic formatting via toolbar button", async () => {
     render(<BlockEditor content="Hello" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("Hello"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 5);
     fireEvent.mouseDown(screen.getByTitle("Italic (Ctrl+I)"));
     await waitFor(() => expect(textarea).toHaveValue("*Hello*"));
@@ -601,7 +601,7 @@ describe("BlockEditor", () => {
   it("applies inline code formatting via toolbar button", async () => {
     render(<BlockEditor content="code" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("code"));
-    const textarea = screen.getByRole("textbox");
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 4);
     fireEvent.mouseDown(screen.getByTitle("Inline code (Ctrl+`)"));
     await waitFor(() => expect(textarea).toHaveValue("`code`"));
@@ -610,7 +610,7 @@ describe("BlockEditor", () => {
   it("toggles off heading prefix when line already has ##", async () => {
     render(<BlockEditor content="## My Heading" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("My Heading"));
-    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 0);
     fireEvent.mouseDown(screen.getByTitle("Heading (Ctrl+Shift+H)"));
     await waitFor(() => expect(textarea).toHaveValue("My Heading"));
@@ -619,7 +619,7 @@ describe("BlockEditor", () => {
   it("toggles off blockquote prefix when line already has >", async () => {
     render(<BlockEditor content="> My Quote" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("My Quote"));
-    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 0);
     fireEvent.mouseDown(screen.getByTitle("Blockquote (Ctrl+Shift+B)"));
     await waitFor(() => expect(textarea).toHaveValue("My Quote"));
@@ -628,7 +628,7 @@ describe("BlockEditor", () => {
   it("toggles off bullet prefix when line already has -", async () => {
     render(<BlockEditor content="- My Item" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText(/My Item/));
-    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 0);
     fireEvent.mouseDown(screen.getByTitle("Bullet list (Ctrl+Shift+U)"));
     await waitFor(() => expect(textarea).toHaveValue("My Item"));
@@ -699,7 +699,7 @@ describe("BlockEditor", () => {
   it("Shift+Tab does nothing when line has no leading spaces", async () => {
     render(<BlockEditor content="noindent" onCommit={onCommit} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("noindent"));
-    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement as HTMLTextAreaElement;
     textarea.setSelectionRange(0, 0);
     fireEvent.keyDown(textarea, { key: "Tab", shiftKey: true });
     // Value should remain unchanged since there are no leading spaces

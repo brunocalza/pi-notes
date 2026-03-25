@@ -166,7 +166,7 @@ describe("App", () => {
   });
 
   it("creates a collection via Sidebar onCreateCollection", async () => {
-    vi.mocked(api.createCollection).mockResolvedValue(undefined);
+    vi.mocked(api.createCollection).mockResolvedValue("col-new");
     render(<App />);
     await waitFor(() => screen.getByTitle("New collection"));
     await userEvent.click(screen.getByTitle("New collection"));

@@ -4,8 +4,8 @@ import "@testing-library/jest-dom";
 if (typeof globalThis.IntersectionObserver === "undefined") {
   globalThis.IntersectionObserver = class IntersectionObserver {
     constructor(
-      private callback: IntersectionObserverCallback,
-      private options?: IntersectionObserverInit
+      _callback: IntersectionObserverCallback,
+      _options?: IntersectionObserverInit
     ) {}
     observe() {}
     unobserve() {}

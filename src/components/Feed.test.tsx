@@ -262,7 +262,7 @@ describe("Feed", () => {
     // Simulate intersection observer callback firing (sentinel becomes visible)
     if (capturedCallback && capturedObserver) {
       const sentinel = document.querySelector(".h-px") as Element;
-      capturedCallback(
+      (capturedCallback as IntersectionObserverCallback)(
         [{ isIntersecting: true, target: sentinel } as IntersectionObserverEntry],
         capturedObserver as unknown as IntersectionObserver
       );
