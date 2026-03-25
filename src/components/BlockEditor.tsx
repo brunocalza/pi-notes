@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import rehypeHighlight from "rehype-highlight";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { all } from "lowlight";
 import { FileText, Bold, Italic, Code, Link2, List, Quote, Heading2 } from "lucide-react";
 import { api } from "../api";
@@ -44,12 +45,29 @@ function fromBlocks(blocks: string[]): string {
   return blocks.filter((b) => b.trim()).join("\n\n");
 }
 
+// Extend the default schema to:
+// - allow className on all elements (syntax highlighting)
+// - allow style on spans (KaTeX)
+// - allow app-internal URL schemes on anchors (wikilink:, attachment:, date:)
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    "*": [...(defaultSchema.attributes?.["*"] ?? []), "className"],
+    span: [...(defaultSchema.attributes?.span ?? []), "style"],
+  },
+  protocols: {
+    ...defaultSchema.protocols,
+    href: [...(defaultSchema.protocols?.href ?? []), "wikilink", "attachment", "date"],
+  },
+};
+
 const urlTransform = (url: string) => {
   if (url.startsWith("wikilink:")) return url;
   if (url.startsWith("attachment:")) return url;
   if (url.startsWith("date:")) return url;
   if (!/^[a-z][a-z\d+\-.]*:/i.test(url)) return url;
-  if (/^(https?|mailto|tel|ircs?):/i.test(url)) return url;
+  if (/^(https?|mailto|tel):/i.test(url)) return url;
   return "";
 };
 
@@ -818,7 +836,11 @@ export default function BlockEditor({
           <div key={i} onClick={() => setActive(i)} className="cursor-text">
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkMath]}
-              rehypePlugins={[rehypeKatex, [rehypeHighlight, { detect: true, languages: all }]]}
+              rehypePlugins={[
+                rehypeKatex,
+                [rehypeHighlight, { detect: true, languages: all }],
+                [rehypeSanitize, sanitizeSchema],
+              ]}
               urlTransform={urlTransform}
               components={components}
             >

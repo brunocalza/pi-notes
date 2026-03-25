@@ -1,4 +1,5 @@
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use dirs;
 use tauri::State;
 
 use crate::application::{
@@ -22,7 +23,8 @@ use crate::infrastructure::schema;
 use crate::ipc::state::AppState;
 
 fn to_ipc_err(e: impl std::fmt::Display) -> String {
-    e.to_string()
+    eprintln!("[pi-notes error] {e}");
+    "An internal error occurred".to_string()
 }
 
 fn make_cursor(ts: Option<i64>, rowid: Option<i64>) -> Option<Cursor> {
@@ -30,6 +32,10 @@ fn make_cursor(ts: Option<i64>, rowid: Option<i64>) -> Option<Cursor> {
         (Some(ts), Some(rowid)) => Some(Cursor { ts, rowid }),
         _ => None,
     }
+}
+
+fn clamp_limit(limit: i64) -> i64 {
+    limit.clamp(1, 1000)
 }
 
 // ---------------------------------------------------------------------------
@@ -57,7 +63,7 @@ pub fn list_notes_cursor(
     state
         .service
         .list_notes(ListNotes {
-            limit,
+            limit: clamp_limit(limit),
             cursor: make_cursor(cursor_ts, cursor_rowid),
         })
         .map_err(to_ipc_err)
@@ -73,7 +79,7 @@ pub fn get_inbox_cursor(
     state
         .service
         .list_inbox(ListInbox {
-            limit,
+            limit: clamp_limit(limit),
             cursor: make_cursor(cursor_ts, cursor_rowid),
         })
         .map_err(to_ipc_err)
@@ -89,7 +95,7 @@ pub fn get_trash_cursor(
     state
         .service
         .list_trash(ListTrash {
-            limit,
+            limit: clamp_limit(limit),
             cursor: make_cursor(cursor_ts, cursor_rowid),
         })
         .map_err(to_ipc_err)
@@ -107,7 +113,7 @@ pub fn get_notes_by_tag_cursor(
         .service
         .get_notes_by_tag(GetNotesByTag {
             tag,
-            limit,
+            limit: clamp_limit(limit),
             cursor: make_cursor(cursor_ts, cursor_rowid),
         })
         .map_err(to_ipc_err)
@@ -125,7 +131,7 @@ pub fn search_notes_cursor(
         .service
         .search_notes(SearchNotes {
             query,
-            limit,
+            limit: clamp_limit(limit),
             cursor: make_cursor(cursor_ts, cursor_rowid),
         })
         .map_err(to_ipc_err)
@@ -293,6 +299,12 @@ pub fn empty_trash(state: State<AppState>) -> Result<(), String> {
 
 #[tauri::command]
 pub fn set_note_image(state: State<AppState>, id: String, path: String) -> Result<(), String> {
+    let data_dir =
+        dirs::data_local_dir().ok_or_else(|| "Cannot resolve data directory".to_string())?;
+    let canonical = std::fs::canonicalize(&path).map_err(|_| "Invalid image path".to_string())?;
+    if !canonical.starts_with(&data_dir) {
+        return Err("Image path outside allowed directory".to_string());
+    }
     state
         .service
         .set_note_image(SetNoteImage {
@@ -344,6 +356,9 @@ pub fn add_attachment(
     mime_type: String,
     data: Vec<u8>,
 ) -> Result<String, String> {
+    if filename.contains('/') || filename.contains('\\') || filename.contains("..") {
+        return Err("Invalid filename".to_string());
+    }
     let id = state
         .service
         .add_attachment(AddAttachment {
@@ -413,7 +428,11 @@ pub fn open_attachment(state: State<AppState>, id: String) -> Result<(), String>
             .map_err(to_ipc_err)?;
         (meta.filename, data)
     };
-    let path = std::env::temp_dir().join(&filename);
+    let safe_name = std::path::Path::new(&filename)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| "Invalid attachment filename".to_string())?;
+    let path = std::env::temp_dir().join(safe_name);
     std::fs::write(&path, &data).map_err(to_ipc_err)?;
     #[cfg(target_os = "linux")]
     std::process::Command::new("xdg-open")
@@ -503,7 +522,7 @@ pub fn get_notes_by_collection_cursor(
         .service
         .get_notes_by_collection(GetNotesByCollection {
             collection_id,
-            limit,
+            limit: clamp_limit(limit),
             cursor: make_cursor(cursor_ts, cursor_rowid),
         })
         .map_err(to_ipc_err)
@@ -524,6 +543,15 @@ pub fn set_db_path_setting(state: State<AppState>, path: String) -> Result<(), S
     if trimmed.is_empty() {
         schema::clear_db_path_config().map_err(to_ipc_err)?;
     } else {
+        let data_dir =
+            dirs::data_local_dir().ok_or_else(|| "Cannot resolve data directory".to_string())?;
+        let p = std::path::Path::new(trimmed);
+        let parent = p.parent().ok_or_else(|| "Invalid DB path".to_string())?;
+        let canonical_parent = std::fs::canonicalize(parent)
+            .map_err(|_| "DB path directory does not exist".to_string())?;
+        if !canonical_parent.starts_with(&data_dir) {
+            return Err("DB path outside allowed directory".to_string());
+        }
         schema::save_db_path_config(trimmed).map_err(to_ipc_err)?;
     }
     let mut wc = state.write_conn.lock().map_err(to_ipc_err)?;
@@ -539,6 +567,13 @@ pub fn set_db_path_setting(state: State<AppState>, path: String) -> Result<(), S
 
 #[tauri::command]
 pub fn open_url(url: String) -> Result<(), String> {
+    let lower = url.to_lowercase();
+    if !lower.starts_with("http://")
+        && !lower.starts_with("https://")
+        && !lower.starts_with("mailto:")
+    {
+        return Err("Unsupported URL scheme".to_string());
+    }
     #[cfg(target_os = "linux")]
     std::process::Command::new("xdg-open")
         .arg(&url)
