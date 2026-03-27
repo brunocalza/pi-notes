@@ -235,7 +235,17 @@ export default function App() {
           collections={collections}
           onNavigate={(id) => {
             setFocusNewNote(false);
+            setSearchQuery("");
             setSelectedNoteId(id);
+            api
+              .getNote(id)
+              .then((n) => {
+                if (!n) return;
+                if (n.trashed) setView("trash");
+                else if (n.in_inbox) setView("inbox");
+                else setView("all");
+              })
+              .catch(() => setView("all"));
           }}
           onTagClick={(tag) => handleViewChange({ tag })}
           onDateSelect={(date) => handleViewChange({ date })}
