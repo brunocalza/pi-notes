@@ -32,6 +32,7 @@ vi.mock("./api", () => ({
     deleteTag: vi.fn().mockResolvedValue(undefined),
     getAllNoteTitles: vi.fn().mockResolvedValue([]),
     getNote: vi.fn().mockResolvedValue(null),
+    getNoteByTitle: vi.fn().mockResolvedValue(null),
     getBacklinks: vi.fn().mockResolvedValue([]),
     getAttachments: vi.fn().mockResolvedValue([]),
     updateNote: vi.fn().mockResolvedValue(undefined),
@@ -476,6 +477,104 @@ describe("App", () => {
     await waitFor(() => {
       expect(api.getNote).toHaveBeenCalledWith(noteId);
     });
+  });
+
+  it("onNavigate switches view to inbox when linked note is in inbox", async () => {
+    const sourceId = "src-nav-inbox";
+    const targetId = "tgt-nav-inbox";
+    const sourceNote = makeNote({
+      id: sourceId,
+      title: "Nav Source",
+      content: "[[Nav Target]]",
+      in_inbox: false,
+    });
+    const targetNote = makeNote({
+      id: targetId,
+      title: "Nav Target",
+      in_inbox: true,
+      trashed: false,
+    });
+
+    vi.mocked(api.listNotesCursor).mockResolvedValue([sourceNote]);
+    vi.mocked(api.getNote).mockImplementation((id: string) =>
+      Promise.resolve(id === sourceId ? sourceNote : targetNote)
+    );
+    vi.mocked(api.getNoteByTitle).mockResolvedValue(targetNote);
+
+    render(<App />);
+    await waitFor(() => screen.getByText("Nav Source"));
+    await userEvent.click(screen.getAllByText("Nav Source")[0]);
+    await waitFor(() => expect(api.getNote).toHaveBeenCalledWith(sourceId));
+    await waitFor(() => document.querySelector(".wikilink"));
+
+    vi.mocked(api.getInboxCursor).mockClear();
+    await userEvent.click(document.querySelector(".wikilink") as HTMLElement);
+
+    await waitFor(() => expect(api.getInboxCursor).toHaveBeenCalled());
+  });
+
+  it("onNavigate switches view to trash when linked note is trashed", async () => {
+    const sourceId = "src-nav-trash";
+    const targetId = "tgt-nav-trash";
+    const sourceNote = makeNote({
+      id: sourceId,
+      title: "Trash Source",
+      content: "[[Trash Target]]",
+      in_inbox: false,
+    });
+    const targetNote = makeNote({ id: targetId, title: "Trash Target", trashed: true });
+
+    vi.mocked(api.listNotesCursor).mockResolvedValue([sourceNote]);
+    vi.mocked(api.getNote).mockImplementation((id: string) =>
+      Promise.resolve(id === sourceId ? sourceNote : targetNote)
+    );
+    vi.mocked(api.getNoteByTitle).mockResolvedValue(targetNote);
+
+    render(<App />);
+    await waitFor(() => screen.getByText("Trash Source"));
+    await userEvent.click(screen.getAllByText("Trash Source")[0]);
+    await waitFor(() => expect(api.getNote).toHaveBeenCalledWith(sourceId));
+    await waitFor(() => document.querySelector(".wikilink"));
+
+    vi.mocked(api.getTrashCursor).mockClear();
+    await userEvent.click(document.querySelector(".wikilink") as HTMLElement);
+
+    await waitFor(() => expect(api.getTrashCursor).toHaveBeenCalled());
+  });
+
+  it("onNavigate navigates to a regular note (non-inbox non-trashed)", async () => {
+    const sourceId = "src-nav-all";
+    const targetId = "tgt-nav-all";
+    const sourceNote = makeNote({
+      id: sourceId,
+      title: "All Source",
+      content: "[[All Target]]",
+      in_inbox: false,
+    });
+    const targetNote = makeNote({
+      id: targetId,
+      title: "All Target",
+      in_inbox: false,
+      trashed: false,
+    });
+
+    vi.mocked(api.listNotesCursor).mockResolvedValue([sourceNote]);
+    vi.mocked(api.getNote).mockImplementation((id: string) =>
+      Promise.resolve(id === sourceId ? sourceNote : targetNote)
+    );
+    vi.mocked(api.getNoteByTitle).mockResolvedValue(targetNote);
+
+    render(<App />);
+    await waitFor(() => screen.getByText("All Source"));
+    await userEvent.click(screen.getAllByText("All Source")[0]);
+    await waitFor(() => expect(api.getNote).toHaveBeenCalledWith(sourceId));
+    await waitFor(() => document.querySelector(".wikilink"));
+
+    vi.mocked(api.getNote).mockClear();
+    await userEvent.click(document.querySelector(".wikilink") as HTMLElement);
+
+    // api.getNote(targetId) is called inside onNavigate, confirming the else-setView("all") branch
+    await waitFor(() => expect(api.getNote).toHaveBeenCalledWith(targetId));
   });
 
   it("handleAddNote adds note to current collection if in collection view", async () => {

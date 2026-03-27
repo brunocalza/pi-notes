@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import Feed from "./Feed";
 import { makeNote } from "../test/fixtures";
+import type { View } from "../types";
 
 vi.mock("../api", () => ({
   api: {
@@ -269,5 +270,68 @@ describe("Feed", () => {
     }
 
     vi.restoreAllMocks();
+  });
+
+  it("falls back to 'Notes' title for unrecognised view type", () => {
+    render(<Feed {...defaultProps} view={"unknown" as unknown as View} />);
+    expect(screen.getByText("Notes")).toBeInTheDocument();
+  });
+
+  it("shows empty state for unrecognised view type (fetchPage returns empty)", async () => {
+    render(<Feed {...defaultProps} view={"unknown" as unknown as View} />);
+    await waitFor(() => {
+      expect(screen.getByText("No notes here")).toBeInTheDocument();
+    });
+  });
+
+  it("IntersectionObserver callback covers loadMore and toCursor when re-run with visible sentinel", async () => {
+    const notes = Array.from({ length: 50 }, (_, i) =>
+      makeNote({
+        id: `00000000-0000-0000-0000-${String(i).padStart(12, "0")}`,
+        title: `Page1 Note ${i}`,
+      })
+    );
+    vi.mocked(api.listNotesCursor).mockResolvedValue(notes);
+
+    const onNotesChange1 = vi.fn();
+    const { rerender } = render(<Feed {...defaultProps} onNotesChange={onNotesChange1} />);
+
+    // Wait for first page to load so sentinel div is rendered
+    await waitFor(() => expect(screen.getByText("Page1 Note 0")).toBeInTheDocument());
+
+    // Stub IntersectionObserver as a proper class constructor AFTER first load
+    let capturedCallback: IntersectionObserverCallback | null = null;
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(cb: IntersectionObserverCallback) {
+          capturedCallback = cb;
+        }
+        observe = vi.fn();
+        disconnect = vi.fn();
+      }
+    );
+
+    // Changing onNotesChange forces loadMore to be recreated, re-running the effect
+    const onNotesChange2 = vi.fn();
+    rerender(<Feed {...defaultProps} onNotesChange={onNotesChange2} />);
+
+    // Effect re-ran with a visible sentinel — callback should now be captured
+    expect(capturedCallback).not.toBeNull();
+
+    // Fire the callback as if sentinel scrolled into view
+    if (capturedCallback) {
+      (capturedCallback as IntersectionObserverCallback)(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver
+      );
+    }
+
+    // loadMore(false) was triggered — wait for it to call onNotesChange (covers 44-45, 162-163)
+    await waitFor(() => {
+      expect(onNotesChange2).toHaveBeenCalled();
+    });
+
+    vi.unstubAllGlobals();
   });
 });

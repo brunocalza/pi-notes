@@ -10,6 +10,7 @@ vi.mock("../api", () => ({
     getNoteByTitle: vi.fn(),
     openUrl: vi.fn().mockResolvedValue(undefined),
     getAttachmentData: vi.fn().mockResolvedValue("base64data"),
+    insertNote: vi.fn().mockResolvedValue("new-note-id"),
   },
 }));
 
@@ -705,6 +706,115 @@ describe("BlockEditor", () => {
     // Value should remain unchanged since there are no leading spaces
     await waitFor(() => {
       expect(textarea.value).toBe("noindent");
+    });
+  });
+
+  it("Shift+Tab unindents indented second line in multi-line block", async () => {
+    render(
+      <BlockEditor content={"line1\n  indented"} onCommit={onCommit} onNavigate={onNavigate} />
+    );
+    await userEvent.click(screen.getByText(/line1/));
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+    // Position cursor on the "  indented" line (after "line1\n  " = position 8)
+    textarea.setSelectionRange(8, 8);
+    fireEvent.keyDown(textarea, { key: "Tab", shiftKey: true });
+    await waitFor(() => {
+      expect(textarea.value).toBe("line1\nindented");
+    });
+    // Flush the setTimeout(() => ta.setSelectionRange(...), 0) callback
+    await new Promise((r) => setTimeout(r, 0));
+  });
+
+  it("shows Create option when no titles match the wikilink query", async () => {
+    vi.mocked(api.getAllNoteTitles).mockResolvedValue([]);
+    render(<BlockEditor content="Start" onCommit={onCommit} onNavigate={onNavigate} />);
+    await waitFor(() => {});
+    await userEvent.click(screen.getByText("Start"));
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "[[Brand New", selectionStart: 11 } });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Create/ })).toBeInTheDocument();
+    });
+  });
+
+  it("Enter key creates note and commits wikilink when no suggestions match", async () => {
+    vi.mocked(api.getAllNoteTitles).mockResolvedValue([]);
+    render(<BlockEditor content="Start" onCommit={onCommit} onNavigate={onNavigate} />);
+    await waitFor(() => {});
+    await userEvent.click(screen.getByText("Start"));
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "[[Brand New", selectionStart: 11 } });
+    await waitFor(() => screen.getByRole("button", { name: /Create/ }));
+    fireEvent.keyDown(textarea, { key: "Enter" });
+    await waitFor(() => {
+      expect(vi.mocked(api.insertNote)).toHaveBeenCalledWith("Brand New", "", []);
+      expect(textarea).toHaveValue("[[Brand New]]");
+    });
+  });
+
+  it("Escape dismisses create option when no suggestions match", async () => {
+    vi.mocked(api.getAllNoteTitles).mockResolvedValue([]);
+    render(<BlockEditor content="Start" onCommit={onCommit} onNavigate={onNavigate} />);
+    await waitFor(() => {});
+    await userEvent.click(screen.getByText("Start"));
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "[[Brand New", selectionStart: 11 } });
+    await waitFor(() => screen.getByRole("button", { name: /Create/ }));
+    fireEvent.keyDown(textarea, { key: "Escape" });
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: /Create/ })).not.toBeInTheDocument();
+    });
+  });
+
+  it("mousedown on Create button creates note and commits wikilink", async () => {
+    vi.mocked(api.getAllNoteTitles).mockResolvedValue([]);
+    render(<BlockEditor content="Start" onCommit={onCommit} onNavigate={onNavigate} />);
+    await waitFor(() => {});
+    await userEvent.click(screen.getByText("Start"));
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "[[My New Note", selectionStart: 13 } });
+    await waitFor(() => screen.getByRole("button", { name: /Create/ }));
+    fireEvent.mouseDown(screen.getByRole("button", { name: /Create/ }));
+    await waitFor(() => {
+      expect(vi.mocked(api.insertNote)).toHaveBeenCalledWith("My New Note", "", []);
+      expect(textarea).toHaveValue("[[My New Note]]");
+    });
+  });
+
+  it("commits wikilink even if note creation fails", async () => {
+    vi.mocked(api.getAllNoteTitles).mockResolvedValue([]);
+    vi.mocked(api.insertNote).mockRejectedValueOnce(new Error("DB error"));
+    render(<BlockEditor content="Start" onCommit={onCommit} onNavigate={onNavigate} />);
+    await waitFor(() => {});
+    await userEvent.click(screen.getByText("Start"));
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "[[FailNote", selectionStart: 10 } });
+    await waitFor(() => screen.getByRole("button", { name: /Create/ }));
+    fireEvent.keyDown(textarea, { key: "Enter" });
+    await waitFor(() => {
+      expect(textarea).toHaveValue("[[FailNote]]");
+    });
+  });
+
+  it("dims wikilink when the linked note does not exist", async () => {
+    vi.mocked(api.getAllNoteTitles).mockResolvedValue([]);
+    render(
+      <BlockEditor content="See [[Missing Note]]" onCommit={onCommit} onNavigate={onNavigate} />
+    );
+    await waitFor(() => {
+      expect(document.querySelector(".wikilink.opacity-40")).toBeInTheDocument();
+    });
+  });
+
+  it("does not dim wikilink when the linked note exists", async () => {
+    vi.mocked(api.getAllNoteTitles).mockResolvedValue(["Existing Note"]);
+    render(
+      <BlockEditor content="See [[Existing Note]]" onCommit={onCommit} onNavigate={onNavigate} />
+    );
+    await waitFor(() => {
+      const el = document.querySelector(".wikilink");
+      expect(el).toBeInTheDocument();
+      expect(el?.classList.contains("opacity-40")).toBe(false);
     });
   });
 });

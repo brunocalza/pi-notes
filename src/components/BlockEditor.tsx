@@ -6,7 +6,7 @@ import rehypeKatex from "rehype-katex";
 import rehypeHighlight from "rehype-highlight";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { all } from "lowlight";
-import { FileText, Bold, Italic, Code, Link2, List, Quote, Heading2 } from "lucide-react";
+import { FileText, Bold, Italic, Code, Link2, List, Quote, Heading2, Plus } from "lucide-react";
 import { api } from "../api";
 import { AttachmentMeta } from "../types";
 import DatePicker from "./DatePicker";
@@ -202,6 +202,7 @@ export default function BlockEditor({
   const [allTitles, setAllTitles] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
+  const [wikilinkQuery, setWikilinkQuery] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerAbove, setDatePickerAbove] = useState(false);
 
@@ -379,6 +380,7 @@ export default function BlockEditor({
       nb[blockIdx] = newBlock;
       setBlocks(nb);
       setSuggestions([]);
+      setWikilinkQuery(null);
       setTimeout(() => {
         ta.focus();
         const newPos = openIdx + title.length + 4;
@@ -386,6 +388,20 @@ export default function BlockEditor({
       }, 0);
     },
     [blocks]
+  );
+
+  const createAndCommitWikilink = useCallback(
+    async (title: string, blockIdx: number) => {
+      try {
+        await api.insertNote(title, "", []);
+        setAllTitles((prev) => [...prev, title]);
+        commitWikilink(title, blockIdx);
+      } catch {
+        // creation failure is non-fatal; wikilink is still inserted
+        commitWikilink(title, blockIdx);
+      }
+    },
+    [commitWikilink]
   );
 
   // Save block i without changing active — used when navigating between blocks
@@ -416,9 +432,10 @@ export default function BlockEditor({
       a({ href, children }: { href?: string; children?: React.ReactNode }) {
         if (href?.startsWith("wikilink:")) {
           const title = decodeURIComponent(href.slice("wikilink:".length));
+          const exists = allTitles.some((t) => t.toLowerCase() === title.toLowerCase());
           return (
             <span
-              className="wikilink cursor-pointer"
+              className={`wikilink cursor-pointer${exists ? "" : " opacity-40"}`}
               onClick={async (e) => {
                 e.stopPropagation();
                 try {
@@ -479,7 +496,7 @@ export default function BlockEditor({
         return <img src={src} alt={alt} className="max-w-full rounded-lg" />;
       },
     }),
-    [onNavigate, onDateSelect, attachments]
+    [onNavigate, onDateSelect, attachments, allTitles]
   );
 
   return (
@@ -541,10 +558,12 @@ export default function BlockEditor({
                   setSuggestions(
                     allTitles.filter((t) => t.toLowerCase().includes(q.toLowerCase())).slice(0, 8)
                   );
+                  setWikilinkQuery(q);
                   setActiveIdx(0);
                   setShowDatePicker(false);
                 } else {
                   setSuggestions([]);
+                  setWikilinkQuery(null);
                   // /date command
                   if (getDateCommand(e.target.value, e.target.selectionStart)) {
                     const rect = taRef.current?.getBoundingClientRect();
@@ -579,6 +598,17 @@ export default function BlockEditor({
                   }
                   if (e.key === "Escape") {
                     setSuggestions([]);
+                    setWikilinkQuery(null);
+                    return;
+                  }
+                } else if (wikilinkQuery && wikilinkQuery.trim() !== "") {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void createAndCommitWikilink(wikilinkQuery, i);
+                    return;
+                  }
+                  if (e.key === "Escape") {
+                    setWikilinkQuery(null);
                     return;
                   }
                 }
@@ -768,7 +798,7 @@ export default function BlockEditor({
               rows={1}
             />
 
-            {suggestions.length > 0 && (
+            {(suggestions.length > 0 || (wikilinkQuery && wikilinkQuery.trim() !== "")) && (
               <div
                 ref={popoverRef}
                 className="absolute left-0 right-0 bottom-full mb-1 bg-field border bc-ui rounded-md shadow-xl z-50 overflow-hidden max-h-48 overflow-y-auto"
@@ -789,6 +819,18 @@ export default function BlockEditor({
                     {title}
                   </button>
                 ))}
+                {suggestions.length === 0 && wikilinkQuery && wikilinkQuery.trim() !== "" && (
+                  <button
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      void createAndCommitWikilink(wikilinkQuery, i);
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left transition-colors bg-raised text-hi"
+                  >
+                    <Plus size={11} className="text-ghost shrink-0" />
+                    Create &ldquo;{wikilinkQuery}&rdquo;
+                  </button>
+                )}
               </div>
             )}
             {showDatePicker && (
