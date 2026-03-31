@@ -205,6 +205,7 @@ export default function BlockEditor({
   const [wikilinkQuery, setWikilinkQuery] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerAbove, setDatePickerAbove] = useState(false);
+  const [wikilinkAbove, setWikilinkAbove] = useState(true);
 
   useEffect(() => {
     api
@@ -228,6 +229,32 @@ export default function BlockEditor({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => {
+    if (suggestions.length === 0 && (!wikilinkQuery || wikilinkQuery.trim() === "")) return;
+    const reposition = () => {
+      const taRect = taRef.current?.getBoundingClientRect();
+      const popRect = popoverRef.current?.getBoundingClientRect();
+      if (!taRect || !popRect) return;
+      const spaceAbove = taRect.top;
+      const spaceBelow = window.innerHeight - taRect.bottom;
+      const popHeight = popRect.height;
+      const gap = 8;
+      if (spaceAbove < popHeight + gap && spaceBelow >= popHeight + gap) {
+        setWikilinkAbove(false);
+      } else if (spaceBelow < popHeight + gap && spaceAbove >= popHeight + gap) {
+        setWikilinkAbove(true);
+      } else {
+        setWikilinkAbove(spaceAbove >= spaceBelow);
+      }
+    };
+    const raf = requestAnimationFrame(reposition);
+    window.addEventListener("resize", reposition);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [suggestions.length, wikilinkQuery]);
 
   // Sync external content changes only while not editing
   useEffect(() => {
@@ -801,7 +828,9 @@ export default function BlockEditor({
             {(suggestions.length > 0 || (wikilinkQuery && wikilinkQuery.trim() !== "")) && (
               <div
                 ref={popoverRef}
-                className="absolute left-0 right-0 bottom-full mb-1 bg-field border bc-ui rounded-md shadow-xl z-50 overflow-hidden max-h-48 overflow-y-auto"
+                className={`absolute left-0 right-0 ${
+                  wikilinkAbove ? "bottom-full mb-1" : "top-full mt-1"
+                } bg-field border bc-ui rounded-md shadow-xl z-50 overflow-hidden max-h-48 overflow-y-auto`}
               >
                 {suggestions.map((title, si) => (
                   <button
