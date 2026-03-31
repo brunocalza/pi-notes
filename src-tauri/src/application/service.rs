@@ -73,8 +73,12 @@ impl AppService {
             .reader
             .get_note(cmd.id.clone())?
             .ok_or_else(|| DomainError::NotFound(cmd.id.to_string()))?;
+        let old_title = note.title.clone();
         let tags = cmd.tags.iter().filter_map(|t| Tag::parse(t)).collect();
         if note.apply_edit(cmd.title, cmd.content, tags) {
+            if note.title != old_title {
+                self.notes.rename_wikilinks(&old_title, &note.title)?;
+            }
             self.notes.save(&note)?;
         }
         Ok(())
@@ -354,6 +358,23 @@ mod tests {
         let note = svc.get_note(id).unwrap().unwrap();
         assert_eq!(note.title, "New");
         assert_eq!(note.content, "new content");
+    }
+
+    #[test]
+    fn update_note_renames_wikilinks_in_other_notes() {
+        let svc = make_service();
+        let target_id = create(&svc, "Old Title", "c", vec![]);
+        let linker_id = create(&svc, "Linker", "see [[Old Title]] here", vec![]);
+        svc.update_note(UpdateNote {
+            id: target_id.clone(),
+            title: "New Title".into(),
+            content: "c".into(),
+            tags: vec![],
+        })
+        .unwrap();
+        let linker = svc.get_note(linker_id).unwrap().unwrap();
+        assert!(linker.content.contains("[[New Title]]"));
+        assert!(!linker.content.contains("[[Old Title]]"));
     }
 
     #[test]
