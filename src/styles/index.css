@@ -596,6 +596,22 @@
   text-underline-offset: 3px;
 }
 
+.milkdown-editor {
+  font-family: "Source Serif 4 Variable", Georgia, "Times New Roman", serif;
+  font-optical-sizing: auto;
+  font-size: 1rem;
+  line-height: 1.6;
+  min-height: 1.6em;
+}
+
+.milkdown-editor .ProseMirror {
+  outline: none;
+}
+
+.milkdown-editor .ProseMirror > * + * {
+  margin-top: 0.9em;
+}
+
 /* ── Syntax highlighting ──────────────────────────────────────────────────── */
 
 .hljs { background: transparent; color: var(--c-text-md); }
