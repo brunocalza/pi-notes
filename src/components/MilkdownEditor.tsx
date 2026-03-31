@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type MutableRefObject,
+} from "react";
 import {
   Editor,
   defaultValueCtx,
@@ -9,6 +17,7 @@ import {
   nodeViewCtx,
 } from "@milkdown/core";
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react";
+import { commonmark } from "@milkdown/preset-commonmark";
 import { gfm } from "@milkdown/preset-gfm";
 import { history } from "@milkdown/plugin-history";
 import { math } from "@milkdown/plugin-math";
@@ -54,7 +63,7 @@ function getTextBlockInfo(view: EditorView) {
   return { text, offset, startPos };
 }
 
-function buildWikilinkPlugin(onNavigate: (id: string) => void) {
+function buildWikilinkPlugin(onNavigateRef: MutableRefObject<(id: string) => void>) {
   return new Plugin({
     props: {
       decorations(state) {
@@ -86,7 +95,7 @@ function buildWikilinkPlugin(onNavigate: (id: string) => void) {
         const title = before.slice(startIdx + 2) + after.slice(0, endIdx);
         void api
           .getNoteByTitle(title)
-          .then((linked) => linked && onNavigate(linked.id))
+          .then((linked) => linked && onNavigateRef.current(linked.id))
           .catch(() => {});
         return true;
       },
@@ -118,7 +127,7 @@ function ToolbarButton({
   );
 }
 
-export default function MilkdownEditor({
+function MilkdownEditorInner({
   content,
   onCommit,
   onNavigate,
@@ -131,6 +140,8 @@ export default function MilkdownEditor({
   const viewRef = useRef<EditorView | null>(null);
   const lastMarkdownRef = useRef(content);
   const pendingCommitRef = useRef<number | null>(null);
+  const onCommitRef = useRef(onCommit);
+  const onNavigateRef = useRef(onNavigate);
   const [allTitles, setAllTitles] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -171,100 +182,102 @@ export default function MilkdownEditor({
       .catch(() => {});
   }, []);
 
-  const scheduleCommit = useCallback(
-    (markdown: string) => {
-      if (pendingCommitRef.current) window.clearTimeout(pendingCommitRef.current);
-      pendingCommitRef.current = window.setTimeout(() => {
-        onCommit(markdown);
-      }, 350);
-    },
-    [onCommit]
-  );
+  useEffect(() => {
+    onCommitRef.current = onCommit;
+  }, [onCommit]);
 
-  const editor = useEditor(
-    (root) => {
-      const wikilinkPlugin = buildWikilinkPlugin(onNavigate);
-      const attachmentImageView: NodeViewConstructor = (node) => {
-        const dom = document.createElement("img");
-        dom.className = "rounded-lg";
-        dom.alt = node.attrs.alt ?? "";
-        const update = (nextNode: { attrs: { src?: string; alt?: string } }) => {
-          if (!nextNode?.attrs) return false;
-          const src = nextNode.attrs.src ?? "";
-          dom.alt = nextNode.attrs.alt ?? "";
-          if (!src) return true;
-          if (src.startsWith("attachment:")) {
-            const raw = src.slice("attachment:".length);
-            const [filepart] = raw.split("?");
-            const filename = decodeURIComponent(filepart);
-            const attachment = attachmentsRef.current.find((att) => att.filename === filename);
-            if (!attachment) {
-              dom.removeAttribute("src");
-              dom.alt = `[attachment not found: ${filename}]`;
-              return true;
-            }
-            const cached = attachmentCacheRef.current.get(attachment.id);
-            if (cached) {
-              dom.src = cached;
-              return true;
-            }
-            api
-              .getAttachmentData(attachment.id)
-              .then((b64) => {
-                const dataUrl = `data:${attachment.mime_type};base64,${b64}`;
-                attachmentCacheRef.current.set(attachment.id, dataUrl);
-                dom.src = dataUrl;
-              })
-              .catch(() => {});
+  useEffect(() => {
+    onNavigateRef.current = onNavigate;
+  }, [onNavigate]);
+
+  const scheduleCommit = useCallback((markdown: string) => {
+    if (pendingCommitRef.current) window.clearTimeout(pendingCommitRef.current);
+    pendingCommitRef.current = window.setTimeout(() => {
+      onCommitRef.current(markdown);
+    }, 350);
+  }, []);
+
+  const editor = useEditor((root) => {
+    const wikilinkPlugin = buildWikilinkPlugin(onNavigateRef);
+    const attachmentImageView: NodeViewConstructor = (node) => {
+      const dom = document.createElement("img");
+      dom.className = "rounded-lg";
+      dom.alt = node.attrs.alt ?? "";
+      const update = (nextNode: { attrs: { src?: string; alt?: string } }) => {
+        if (!nextNode?.attrs) return false;
+        const src = nextNode.attrs.src ?? "";
+        dom.alt = nextNode.attrs.alt ?? "";
+        if (!src) return true;
+        if (src.startsWith("attachment:")) {
+          const raw = src.slice("attachment:".length);
+          const [filepart] = raw.split("?");
+          const filename = decodeURIComponent(filepart);
+          const attachment = attachmentsRef.current.find((att) => att.filename === filename);
+          if (!attachment) {
+            dom.removeAttribute("src");
+            dom.alt = `[attachment not found: ${filename}]`;
             return true;
           }
-          dom.src = src;
+          const cached = attachmentCacheRef.current.get(attachment.id);
+          if (cached) {
+            dom.src = cached;
+            return true;
+          }
+          api
+            .getAttachmentData(attachment.id)
+            .then((b64) => {
+              const dataUrl = `data:${attachment.mime_type};base64,${b64}`;
+              attachmentCacheRef.current.set(attachment.id, dataUrl);
+              dom.src = dataUrl;
+            })
+            .catch(() => {});
           return true;
-        };
-        update(node);
-        return { dom, update };
+        }
+        dom.src = src;
+        return true;
       };
+      update(node);
+      return { dom, update };
+    };
 
-      return Editor.make()
-        .config((ctx) => {
-          ctx.set(rootCtx, root);
-          ctx.set(rootAttrsCtx, {
-            class: "milkdown-editor text-md text-sm leading-relaxed",
-          });
-          ctx.set(defaultValueCtx, content);
-          ctx.update(prosePluginsCtx, (plugins) => [...plugins, wikilinkPlugin]);
-          const attachmentViewEntry: [string, NodeViewConstructor] = [
-          "image",
-          attachmentImageView,
-        ];
+    return Editor.make()
+      .config((ctx) => {
+        ctx.set(rootCtx, root);
+        ctx.set(rootAttrsCtx, {
+          class: "milkdown-editor text-md text-sm leading-relaxed",
+        });
+        ctx.set(defaultValueCtx, content);
+        ctx.update(prosePluginsCtx, (plugins) => [...plugins, wikilinkPlugin]);
+        const attachmentViewEntry: [string, NodeViewConstructor] = ["image", attachmentImageView];
         ctx.update(nodeViewCtx, (views) => [...views, attachmentViewEntry]);
-          ctx
-            .get(listenerCtx)
-            .mounted((ctx) => {
-              viewRef.current = ctx.get(editorViewCtx);
-            })
-            .markdownUpdated((_ctx, markdown) => {
-              if (markdown === lastMarkdownRef.current) return;
-              lastMarkdownRef.current = markdown;
-              scheduleCommit(markdown);
-            })
-            .selectionUpdated(() => {
-              if (!viewRef.current) return;
-              const coords = viewRef.current.coordsAtPos(viewRef.current.state.selection.from);
-              setCursorCoords({ top: coords.top, bottom: coords.bottom, left: coords.left });
-            })
-            .focus(() => setFocused(true))
-            .blur(() => setFocused(false));
-        })
-        .config(nord)
-        .use(gfm)
-        .use(history)
-        .use(math)
-        .use(prism)
-        .use(listener);
-    },
-    [content, onNavigate, scheduleCommit]
-  );
+      })
+      .config(nord)
+      .use(commonmark)
+      .use(gfm)
+      .use(history)
+      .use(math)
+      .use(prism)
+      .use(listener)
+      .config((ctx) => {
+        ctx
+          .get(listenerCtx)
+          .mounted((ctx) => {
+            viewRef.current = ctx.get(editorViewCtx);
+          })
+          .markdownUpdated((_ctx, markdown) => {
+            if (markdown === lastMarkdownRef.current) return;
+            lastMarkdownRef.current = markdown;
+            scheduleCommit(markdown);
+          })
+          .selectionUpdated(() => {
+            if (!viewRef.current) return;
+            const coords = viewRef.current.coordsAtPos(viewRef.current.state.selection.from);
+            setCursorCoords({ top: coords.top, bottom: coords.bottom, left: coords.left });
+          })
+          .focus(() => setFocused(true))
+          .blur(() => setFocused(false));
+      });
+  }, []);
 
   useEffect(() => {
     const instance = editor.get();
@@ -583,9 +596,7 @@ export default function MilkdownEditor({
         </div>
       )}
 
-      <MilkdownProvider>
-        <Milkdown />
-      </MilkdownProvider>
+      <Milkdown />
 
       {(suggestions.length > 0 || (wikilinkQuery && wikilinkQuery.trim() !== "")) && (
         <div
@@ -640,5 +651,13 @@ export default function MilkdownEditor({
         </div>
       )}
     </div>
+  );
+}
+
+export default function MilkdownEditor(props: Props) {
+  return (
+    <MilkdownProvider>
+      <MilkdownEditorInner {...props} />
+    </MilkdownProvider>
   );
 }

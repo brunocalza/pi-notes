@@ -606,6 +606,7 @@
 
 .milkdown-editor .ProseMirror {
   outline: none;
+  white-space: pre-wrap;
 }
 
 .milkdown-editor .ProseMirror > * + * {
