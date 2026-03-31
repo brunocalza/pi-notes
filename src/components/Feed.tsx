@@ -185,7 +185,7 @@ export default function Feed({
                     onEmptyTrash();
                   }
                 }}
-                className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 hover:bg-field px-2.5 py-1 rounded-md transition-colors"
+                className="flex items-center gap-1 text-xs text-danger hover:bg-field px-2.5 py-1 rounded-md transition-colors"
               >
                 <Trash2 size={12} />
                 Empty Trash
@@ -210,7 +210,7 @@ export default function Feed({
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search..."
-              className="w-full bg-field border bc-ui rounded text-xs pl-7 pr-2.5 py-1.5 text-md placeholder-[#666] outline-none focus:bc-focus transition-colors"
+              className="w-full bg-field border bc-ui rounded text-xs pl-7 pr-2.5 py-1.5 text-md placeholder-[var(--c-text-ghost)] outline-none focus:bc-focus transition-colors"
             />
           </div>
         )}

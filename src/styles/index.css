@@ -416,6 +416,7 @@
 @utility text-bom-badge  { color: var(--c-bom-text); }
 @utility bg-danger       { background-color: var(--c-danger-bg); }
 @utility text-danger     { color: var(--c-danger-text); }
+@utility bc-danger       { border-color: var(--c-danger-text); }
 
 /* ── Base ─────────────────────────────────────────────────────────────────── */
 
