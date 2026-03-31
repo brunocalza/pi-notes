@@ -15,28 +15,17 @@ describe("Create Note", () => {
     await clickButton("New");
     await waitForText("Note actions");
 
-    // Clear the title input and set a new value
+    // Clear the title textarea and set a new value
     await browser.execute(() => {
-      const inputs = document.querySelectorAll("input");
-      for (const input of inputs) {
-        if (input.value === "New note") {
-          input.value = "";
-          input.dispatchEvent(new Event("input", { bubbles: true }));
-          return;
-        }
-      }
-    });
-
-    await browser.execute(() => {
-      const inputs = document.querySelectorAll("input");
-      for (const input of inputs) {
-        if (input.placeholder === "Untitled" || input.value === "") {
+      const textareas = document.querySelectorAll("textarea");
+      for (const ta of textareas) {
+        if (ta.value === "New note") {
           const setter = Object.getOwnPropertyDescriptor(
-            window.HTMLInputElement.prototype,
+            window.HTMLTextAreaElement.prototype,
             "value"
           )?.set;
-          if (setter) setter.call(input, "My new note");
-          input.dispatchEvent(new Event("input", { bubbles: true }));
+          if (setter) setter.call(ta, "My new note");
+          ta.dispatchEvent(new Event("input", { bubbles: true }));
           return;
         }
       }

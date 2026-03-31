@@ -121,14 +121,25 @@ export default function Sidebar({
   const today = new Date();
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
-  const [daysWithNotes, setDaysWithNotes] = useState<number[]>([]);
+  const [daysWithNotes, setDaysWithNotes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    setDaysWithNotes([]);
-    const mm = String(calMonth + 1).padStart(2, "0");
-    api
-      .getDaysWithNotesInMonth(`${calYear}-${mm}`)
-      .then(setDaysWithNotes)
+    setDaysWithNotes(new Set());
+    const prevDate = new Date(calYear, calMonth - 1, 1);
+    const nextDate = new Date(calYear, calMonth + 1, 1);
+    const months = [
+      `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`,
+      `${calYear}-${String(calMonth + 1).padStart(2, "0")}`,
+      `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`,
+    ];
+    Promise.all(months.map((m) => api.getDaysWithNotesInMonth(m).catch(() => [] as number[])))
+      .then(([prevDays, curDays, nextDays]) => {
+        const dates = new Set<string>();
+        prevDays.forEach((d) => dates.add(`${months[0]}-${String(d).padStart(2, "0")}`));
+        curDays.forEach((d) => dates.add(`${months[1]}-${String(d).padStart(2, "0")}`));
+        nextDays.forEach((d) => dates.add(`${months[2]}-${String(d).padStart(2, "0")}`));
+        setDaysWithNotes(dates);
+      })
       .catch(() => {});
   }, [calYear, calMonth, refreshKey]);
 
@@ -418,11 +429,25 @@ export default function Sidebar({
         const firstDay = new Date(calYear, calMonth, 1).getDay();
         const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
         const prevDays = new Date(calYear, calMonth, 0).getDate();
-        const cells: Array<{ day: number; cur: boolean }> = [];
-        for (let i = firstDay - 1; i >= 0; i--) cells.push({ day: prevDays - i, cur: false });
-        for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, cur: true });
+        const prevMonthDate = new Date(calYear, calMonth - 1, 1);
+        const nextMonthDate = new Date(calYear, calMonth + 1, 1);
+        const cells: Array<{ day: number; cur: boolean; year: number; month: number }> = [];
+        for (let i = firstDay - 1; i >= 0; i--)
+          cells.push({
+            day: prevDays - i,
+            cur: false,
+            year: prevMonthDate.getFullYear(),
+            month: prevMonthDate.getMonth(),
+          });
+        for (let d = 1; d <= daysInMonth; d++)
+          cells.push({ day: d, cur: true, year: calYear, month: calMonth });
         while (cells.length % 7 !== 0)
-          cells.push({ day: cells.length - daysInMonth - firstDay + 1, cur: false });
+          cells.push({
+            day: cells.length - daysInMonth - firstDay + 1,
+            cur: false,
+            year: nextMonthDate.getFullYear(),
+            month: nextMonthDate.getMonth(),
+          });
 
         const isToday = (d: number) =>
           d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
@@ -487,7 +512,8 @@ export default function Sidebar({
 
             <div className="grid grid-cols-7">
               {cells.map((cell, idx) => {
-                const hasDot = cell.cur && daysWithNotes.includes(cell.day);
+                const cellDate = `${cell.year}-${String(cell.month + 1).padStart(2, "0")}-${String(cell.day).padStart(2, "0")}`;
+                const hasDot = daysWithNotes.has(cellDate);
                 const active = cell.cur && isActiveDate(cell.day);
                 const todayCell = cell.cur && isToday(cell.day);
                 return (
@@ -499,7 +525,7 @@ export default function Sidebar({
                       const dd = String(cell.day).padStart(2, "0");
                       onViewChange({ date: `${calYear}-${mm}-${dd}` });
                     }}
-                    className={`flex flex-col items-center py-0.5 rounded transition-colors ${
+                    className={`flex items-center justify-center py-0.5 rounded transition-colors ${
                       !cell.cur
                         ? "cursor-default"
                         : active
@@ -508,21 +534,24 @@ export default function Sidebar({
                     }`}
                   >
                     <span
-                      className={`text-[10px] leading-tight ${
+                      className={`text-[10px] leading-none inline-flex items-center justify-center w-[18px] h-[18px] rounded-sm border ${
                         !cell.cur
-                          ? "text-ghost"
+                          ? hasDot
+                            ? "text-ghost border-[var(--c-text-ghost)]"
+                            : "text-ghost border-transparent"
                           : active
-                            ? "text-hi font-semibold"
-                            : todayCell
-                              ? "text-accent font-semibold"
-                              : "text-dim"
+                            ? "text-hi font-semibold border-transparent"
+                            : hasDot
+                              ? todayCell
+                                ? "text-accent font-semibold border-[var(--c-accent)]"
+                                : "text-dim border-[var(--c-text-dim)]"
+                              : todayCell
+                                ? "text-accent font-semibold border-transparent"
+                                : "text-dim border-transparent"
                       }`}
                     >
                       {cell.day}
                     </span>
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full mt-0.5 ${hasDot ? (active ? "bg-[var(--c-text-lo)]" : "bg-[var(--c-text-dim)]") : "invisible"}`}
-                    />
                   </button>
                 );
               })}

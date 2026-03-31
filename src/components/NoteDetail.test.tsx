@@ -459,9 +459,11 @@ describe("NoteDetail", () => {
     await waitFor(() => screen.getByDisplayValue("Title"));
     // Click on the content to activate BlockEditor
     await userEvent.click(screen.getByText("Original content"));
-    // There are multiple textboxes (title input + BlockEditor textarea), get textarea specifically
+    // There are multiple textareas (title + BlockEditor), get the one with the note content
     const textboxes = screen.getAllByRole("textbox");
-    const textarea = textboxes.find((el) => el.tagName === "TEXTAREA")!;
+    const textarea = textboxes.find(
+      (el) => el.tagName === "TEXTAREA" && (el as HTMLTextAreaElement).value === "Original content"
+    )!;
     fireEvent.change(textarea, { target: { value: "New content" } });
     fireEvent.blur(textarea);
 

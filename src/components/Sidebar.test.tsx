@@ -595,9 +595,9 @@ describe("Sidebar calendar", () => {
 
   it("refetches dots when refreshKey changes", async () => {
     const { rerender } = render(<Sidebar {...defaultProps} refreshKey={0} />);
-    await waitFor(() => expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(3));
     rerender(<Sidebar {...defaultProps} refreshKey={1} />);
-    await waitFor(() => expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(6));
   });
 
   it("highlights the date nav when view is a date view", async () => {
@@ -621,7 +621,7 @@ describe("Sidebar calendar", () => {
   it("navigates to next month and refetches dots", async () => {
     const now = new Date();
     render(<Sidebar {...defaultProps} />);
-    await waitFor(() => expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(3));
 
     await userEvent.click(screen.getByTitle("Next month"));
 
@@ -629,14 +629,14 @@ describe("Sidebar calendar", () => {
     const nextYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
     await waitFor(() => {
       expect(screen.getByText(`${MONTHS[nextMonth]} ${nextYear}`)).toBeInTheDocument();
-      expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(2);
+      expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(6);
     });
   });
 
   it("navigates to previous month and refetches dots", async () => {
     const now = new Date();
     render(<Sidebar {...defaultProps} />);
-    await waitFor(() => expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(3));
 
     await userEvent.click(screen.getByTitle("Previous month"));
 
@@ -644,18 +644,22 @@ describe("Sidebar calendar", () => {
     const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
     await waitFor(() => {
       expect(screen.getByText(`${MONTHS[prevMonth]} ${prevYear}`)).toBeInTheDocument();
-      expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(2);
+      expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(6);
     });
   });
 
-  it("renders a dot for each day returned by getDaysWithNotesInMonth", async () => {
-    vi.mocked(api.getDaysWithNotesInMonth).mockResolvedValue([5, 15, 20]);
+  it("renders a box outline for each day returned by getDaysWithNotesInMonth", async () => {
+    // Only return notes for the current month; prev and next return empty so overflow cells stay plain
+    vi.mocked(api.getDaysWithNotesInMonth)
+      .mockResolvedValueOnce([]) // prev month
+      .mockResolvedValueOnce([5, 15, 20]) // current month
+      .mockResolvedValueOnce([]); // next month
     render(<Sidebar {...defaultProps} />);
     await waitFor(() => {
-      const visibleDots = Array.from(document.querySelectorAll(".rounded-full")).filter(
-        (el) => !el.classList.contains("invisible")
+      const outlinedCells = Array.from(document.querySelectorAll(".rounded-sm.border")).filter(
+        (el) => !el.classList.contains("border-transparent")
       );
-      expect(visibleDots.length).toBe(3);
+      expect(outlinedCells.length).toBe(3);
     });
   });
 
