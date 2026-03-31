@@ -57,7 +57,7 @@ export default function NoteDetail({
   const [collectionId, setCollectionId] = useState<string | null>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
   const tagPopoverRef = useRef<HTMLDivElement>(null);
-  const titleRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const actionsButtonRef = useRef<HTMLButtonElement>(null);
   const actionsPopoverRef = useRef<HTMLDivElement>(null);
@@ -90,6 +90,13 @@ export default function NoteDetail({
       titleRef.current.select();
     }
   }, [focusTitle, note]);
+
+  useEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [title]);
 
   useEffect(() => {
     api
@@ -304,16 +311,20 @@ export default function NoteDetail({
         <div className="max-w-2xl mx-auto">
           {/* Title row with actions popover */}
           <div className="flex items-center gap-2 mb-3">
-            <input
+            <textarea
               ref={titleRef}
               value={title}
+              rows={1}
               onChange={(e) => setTitle(e.target.value)}
               onBlur={() => {
                 if (title.trim() === note.title.trim()) return;
                 save(title, note.content, tags);
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.preventDefault();
+              }}
               placeholder="Untitled"
-              className="flex-1 text-2xl font-bold text-hi bg-transparent outline-none placeholder-ghost min-w-0 font-heading"
+              className="flex-1 text-2xl font-bold text-hi bg-transparent outline-none placeholder-ghost min-w-0 font-heading resize-none overflow-hidden leading-tight"
             />
             <div className="relative shrink-0">
               <button

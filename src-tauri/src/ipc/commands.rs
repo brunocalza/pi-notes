@@ -17,6 +17,7 @@ use crate::application::{
 use crate::domain::{
     attachment::{AttachmentId, AttachmentMeta},
     collection::{Collection, CollectionId},
+    error::DomainError,
     note::{Note, NoteId},
 };
 use crate::infrastructure::schema;
@@ -25,6 +26,13 @@ use crate::ipc::state::AppState;
 fn to_ipc_err(e: impl std::fmt::Display) -> String {
     eprintln!("[pi-notes error] {e}");
     "An internal error occurred".to_string()
+}
+
+fn to_user_err(e: DomainError) -> String {
+    match e {
+        DomainError::ValidationError(_) | DomainError::DuplicateName(_) => e.to_string(),
+        _ => to_ipc_err(e),
+    }
 }
 
 fn make_cursor(ts: Option<i64>, rowid: Option<i64>) -> Option<Cursor> {
@@ -466,7 +474,7 @@ pub fn create_collection(state: State<AppState>, name: String) -> Result<String,
     let id = state
         .service
         .create_collection(CreateCollection { name })
-        .map_err(to_ipc_err)?;
+        .map_err(to_user_err)?;
     Ok(id.to_string())
 }
 
@@ -482,7 +490,7 @@ pub fn rename_collection(
             id: CollectionId(id),
             new_name,
         })
-        .map_err(to_ipc_err)
+        .map_err(to_user_err)
 }
 
 #[tauri::command]
