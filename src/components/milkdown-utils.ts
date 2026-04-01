@@ -11,13 +11,21 @@ export function formatDateLabel(iso: string): string {
   });
 }
 
+function escapeAttr(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 /** Build an SVG string matching Lucide's viewBox/stroke style. */
 export function lucideSvg(paths: Array<[string, Record<string, string>]>): string {
   const inner = paths
     .map(([tag, attrs]) => {
       const a = Object.entries(attrs)
         .filter(([k]) => k !== "key")
-        .map(([k, v]) => `${k}="${v}"`)
+        .map(([k, v]) => `${k}="${escapeAttr(v)}"`)
         .join(" ");
       return `<${tag} ${a}/>`;
     })

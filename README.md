@@ -34,9 +34,14 @@ npm run build
 
 Outputs `.deb`, `.rpm`, and `.AppImage` to `src-tauri/target/release/bundle/`.
 
+## Disclaimer
+
+Release artifacts are signed to verify authenticity and integrity. This does not constitute a warranty or guarantee of fitness, security, or support.
+
+PI Notes stores all data locally on your device. You are responsible for backing up your database. The authors are not liable for data loss.
+
 ## Roadmap
 - Internationalization
 - Sync across devices
 - Mobile apps
 - Better filtering and search
-- Auto-update

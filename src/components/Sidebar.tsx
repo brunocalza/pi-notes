@@ -651,113 +651,113 @@ export default function Sidebar({
       </div>
       {/* end Tags */}
 
-      {/* Settings panel */}
-      {settingsOpen && (
-        <div className="border-t bc-subtle px-4 py-4 shrink-0">
-          <p className="text-[10px] font-semibold text-ghost uppercase tracking-wider mb-3">
-            Appearance
-          </p>
+      {/* Settings button + popover */}
+      <div className="relative border-t bc-subtle px-3 py-2 shrink-0">
+        {settingsOpen && (
+          <div className="absolute bottom-full left-0 right-0 bg-panel border bc-ui rounded-t-lg shadow-lg px-4 py-4">
+            <p className="text-[10px] font-semibold text-ghost uppercase tracking-wider mb-3">
+              Appearance
+            </p>
 
-          {/* Theme swatches */}
-          <div className="flex gap-2 mb-4">
-            {THEMES.map((t) => {
-              const colors = theme === "dark" ? t.dark : t.light;
-              const selected = colorTheme === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => onColorThemeChange(t.id)}
-                  className="flex flex-col items-center gap-1.5 group"
-                  title={t.label}
-                >
-                  <div
-                    className="rounded transition-transform group-hover:scale-110"
-                    style={{
-                      width: 34,
-                      height: 26,
-                      background: colors.bg,
-                      border: selected ? `2px solid ${colors.accent}` : "2px solid transparent",
-                      boxShadow: selected ? `0 0 0 1px ${colors.accent}40` : "none",
-                      borderRadius: 5,
-                      overflow: "hidden",
-                      position: "relative",
-                    }}
+            {/* Theme swatches */}
+            <div className="flex gap-2 mb-4">
+              {THEMES.map((t) => {
+                const colors = theme === "dark" ? t.dark : t.light;
+                const selected = colorTheme === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => onColorThemeChange(t.id)}
+                    className="flex flex-col items-center gap-1.5 group"
+                    title={t.label}
                   >
                     <div
+                      className="rounded transition-transform group-hover:scale-110"
                       style={{
-                        position: "absolute",
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        height: 6,
-                        background: colors.accent,
+                        width: 34,
+                        height: 26,
+                        background: colors.bg,
+                        border: selected ? `2px solid ${colors.accent}` : "2px solid transparent",
+                        boxShadow: selected ? `0 0 0 1px ${colors.accent}40` : "none",
+                        borderRadius: 5,
+                        overflow: "hidden",
+                        position: "relative",
                       }}
-                    />
-                  </div>
-                  <span
-                    className="text-[9px] transition-colors"
-                    style={{ color: selected ? colors.accent : "var(--c-text-ghost)" }}
-                  >
-                    {t.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                    >
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          height: 6,
+                          background: colors.accent,
+                        }}
+                      />
+                    </div>
+                    <span
+                      className="text-[9px] transition-colors"
+                      style={{ color: selected ? colors.accent : "var(--c-text-ghost)" }}
+                    >
+                      {t.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
-          {/* Dark / Light toggle */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-ghost">Mode</span>
-            <div className="flex items-center gap-1 bg-field border bc-ui rounded-md p-0.5">
-              <button
-                onClick={() => theme === "light" && onThemeToggle()}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${
-                  theme === "dark" ? "bg-raised text-md" : "text-dim hover:text-lo"
-                }`}
-              >
-                <Moon size={11} />
-                Dark
-              </button>
-              <button
-                onClick={() => theme === "dark" && onThemeToggle()}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${
-                  theme === "light" ? "bg-raised text-md" : "text-dim hover:text-lo"
-                }`}
-              >
-                <Sun size={11} />
-                Light
-              </button>
+            {/* Dark / Light toggle */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-ghost">Mode</span>
+              <div className="flex items-center gap-1 bg-field border bc-ui rounded-md p-0.5">
+                <button
+                  onClick={() => theme === "light" && onThemeToggle()}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${
+                    theme === "dark" ? "bg-raised text-md" : "text-dim hover:text-lo"
+                  }`}
+                >
+                  <Moon size={11} />
+                  Dark
+                </button>
+                <button
+                  onClick={() => theme === "dark" && onThemeToggle()}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${
+                    theme === "light" ? "bg-raised text-md" : "text-dim hover:text-lo"
+                  }`}
+                >
+                  <Sun size={11} />
+                  Light
+                </button>
+              </div>
+            </div>
+
+            {/* Storage */}
+            <div className="border-t bc-subtle mt-4 pt-4">
+              <p className="text-[10px] font-semibold text-ghost uppercase tracking-wider mb-2">
+                Storage
+              </p>
+              <p className="text-[10px] text-ghost mb-1">Database path</p>
+              <input
+                value={dbPathInput}
+                onChange={(e) => {
+                  setDbPathInput(e.target.value);
+                  setDbPathError("");
+                }}
+                onBlur={handleDbPathSave}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.currentTarget.blur();
+                  }
+                }}
+                spellCheck={false}
+                className="w-full bg-field border bc-ui rounded px-2 py-1 text-[11px] text-lo outline-none focus:bc-focus font-mono"
+              />
+              {dbPathError && (
+                <p className="text-[10px] text-danger mt-1 break-all">{dbPathError}</p>
+              )}
             </div>
           </div>
-
-          {/* Storage */}
-          <div className="border-t bc-subtle mt-4 pt-4">
-            <p className="text-[10px] font-semibold text-ghost uppercase tracking-wider mb-2">
-              Storage
-            </p>
-            <p className="text-[10px] text-ghost mb-1">Database path</p>
-            <input
-              value={dbPathInput}
-              onChange={(e) => {
-                setDbPathInput(e.target.value);
-                setDbPathError("");
-              }}
-              onBlur={handleDbPathSave}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.currentTarget.blur();
-                }
-              }}
-              spellCheck={false}
-              className="w-full bg-field border bc-ui rounded px-2 py-1 text-[11px] text-lo outline-none focus:bc-focus font-mono"
-            />
-            {dbPathError && <p className="text-[10px] text-danger mt-1 break-all">{dbPathError}</p>}
-          </div>
-        </div>
-      )}
-
-      {/* Settings button */}
-      <div className="border-t bc-subtle px-3 py-2 shrink-0">
+        )}
         <button
           onClick={() => setSettingsOpen((o) => !o)}
           className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs transition-colors ${
