@@ -62,6 +62,7 @@ vi.mock("node-emoji", () => ({
 }));
 vi.mock("../api", () => ({
   api: {
+    getAllNoteSummaries: vi.fn().mockResolvedValue([]),
     getAllNoteTitles: vi.fn().mockResolvedValue([]),
     getNoteByTitle: vi.fn(),
     insertNote: vi.fn().mockResolvedValue("new-id"),
@@ -75,7 +76,12 @@ describe("WikilinkEditPopover", () => {
     rect: { top: 100, bottom: 120, left: 200 },
     query: "",
     activeIdx: 0,
-    allTitles: ["Alpha Note", "Beta Note", "Gamma Note", "Another Alpha"],
+    allSummaries: [
+      { id: "id-alpha", title: "Alpha Note", created_at: 1000, snippet: "" },
+      { id: "id-beta", title: "Beta Note", created_at: 2000, snippet: "" },
+      { id: "id-gamma", title: "Gamma Note", created_at: 3000, snippet: "" },
+      { id: "id-another", title: "Another Alpha", created_at: 4000, snippet: "" },
+    ],
     popoverRef: createRef<HTMLDivElement>(),
     onQueryChange: vi.fn(),
     onSelect: vi.fn(),
@@ -116,7 +122,9 @@ describe("WikilinkEditPopover", () => {
   it("calls onSelect when clicking a title", () => {
     render(<WikilinkEditPopover {...defaultProps} />);
     fireEvent.mouseDown(screen.getByText("Beta Note"));
-    expect(defaultProps.onSelect).toHaveBeenCalledWith("Beta Note");
+    expect(defaultProps.onSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "id-beta", title: "Beta Note" })
+    );
   });
 
   it("calls onClose on Escape key", async () => {
@@ -130,7 +138,9 @@ describe("WikilinkEditPopover", () => {
     render(<WikilinkEditPopover {...defaultProps} activeIdx={1} />);
     const input = screen.getByPlaceholderText("Search notes…");
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(defaultProps.onSelect).toHaveBeenCalledWith("Beta Note");
+    expect(defaultProps.onSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "id-beta", title: "Beta Note" })
+    );
   });
 
   it("calls onActiveIdxChange on ArrowDown", () => {
@@ -181,8 +191,13 @@ describe("WikilinkEditPopover", () => {
   });
 
   it("limits filtered results to 8", () => {
-    const manyTitles = Array.from({ length: 20 }, (_, i) => `Note ${i}`);
-    render(<WikilinkEditPopover {...defaultProps} allTitles={manyTitles} />);
+    const manySummaries = Array.from({ length: 20 }, (_, i) => ({
+      id: `id-${i}`,
+      title: `Note ${i}`,
+      created_at: i * 1000,
+      snippet: "",
+    }));
+    render(<WikilinkEditPopover {...defaultProps} allSummaries={manySummaries} />);
     const buttons = screen.getAllByRole("button");
     expect(buttons.length).toBe(8);
   });

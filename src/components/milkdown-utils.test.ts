@@ -7,6 +7,9 @@ import {
   parseImageWidth,
   setImageWidth,
   filterTitles,
+  filterSummaries,
+  hasDuplicateTitle,
+  formatShortDate,
 } from "./milkdown-utils";
 
 describe("formatDateLabel", () => {
@@ -164,5 +167,58 @@ describe("filterTitles", () => {
 
   it("is case-insensitive", () => {
     expect(filterTitles(titles, "MY")).toEqual(["My Note", "my diary"]);
+  });
+});
+
+describe("filterSummaries", () => {
+  const summaries = [
+    { id: "1", title: "My Note", created_at: 1000, snippet: "" },
+    { id: "2", title: "Another Note", created_at: 2000, snippet: "" },
+    { id: "3", title: "Recipe", created_at: 3000, snippet: "" },
+  ];
+
+  it("filters by title substring", () => {
+    const result = filterSummaries(summaries, "note");
+    expect(result.map((s) => s.title)).toEqual(["My Note", "Another Note"]);
+  });
+
+  it("returns empty for no match", () => {
+    expect(filterSummaries(summaries, "zzz")).toEqual([]);
+  });
+
+  it("limits to 8 by default", () => {
+    const many = Array.from({ length: 20 }, (_, i) => ({
+      id: `${i}`,
+      title: `Note ${i}`,
+      created_at: i * 1000,
+      snippet: "",
+    }));
+    expect(filterSummaries(many, "Note")).toHaveLength(8);
+  });
+});
+
+describe("hasDuplicateTitle", () => {
+  it("returns true when title appears more than once", () => {
+    const summaries = [
+      { id: "1", title: "Foo", created_at: 1000, snippet: "" },
+      { id: "2", title: "Foo", created_at: 2000, snippet: "" },
+    ];
+    expect(hasDuplicateTitle(summaries, "Foo")).toBe(true);
+  });
+
+  it("returns false when title is unique", () => {
+    const summaries = [
+      { id: "1", title: "Foo", created_at: 1000, snippet: "" },
+      { id: "2", title: "Bar", created_at: 2000, snippet: "" },
+    ];
+    expect(hasDuplicateTitle(summaries, "Foo")).toBe(false);
+  });
+});
+
+describe("formatShortDate", () => {
+  it("formats a timestamp", () => {
+    const result = formatShortDate(0);
+    // Just verify it returns a non-empty string (locale-dependent)
+    expect(result.length).toBeGreaterThan(0);
   });
 });

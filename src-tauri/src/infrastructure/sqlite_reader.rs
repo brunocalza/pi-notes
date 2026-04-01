@@ -6,7 +6,7 @@ use crate::application::{
     ports::note_reader::NoteReader,
     queries::note::{
         GetNotesByCollection, GetNotesByDate, GetNotesByTag, ListInbox, ListNotes, ListTrash,
-        SearchNotes,
+        NoteSummary, SearchNotes,
     },
 };
 use crate::domain::{
@@ -344,31 +344,16 @@ impl NoteReader for SqliteNoteReader {
 
     fn get_backlinks(&self, id: NoteId) -> Result<Vec<Note>, DomainError> {
         let conn = self.conn.lock().map_err(map_err)?;
-        let title: String = match conn.query_row(
-            "SELECT title FROM notes WHERE id = ?1",
-            params![id.as_str()],
-            |row| row.get(0),
-        ) {
-            Ok(t) => t,
-            Err(_) => return Ok(vec![]),
-        };
-        if title.is_empty() {
-            return Ok(vec![]);
-        }
-        let escaped_title = title
-            .replace('\\', "\\\\")
-            .replace('%', "\\%")
-            .replace('_', "\\_");
-        let pattern = format!("%(<wikilink:{escaped_title}>)%");
         let sql = format!(
             "{SELECT}
-             WHERE n.id != ?2 AND n.trashed = 0 AND n.content LIKE ?1 ESCAPE '\\'
+             WHERE n.id IN (SELECT source_note_id FROM note_links WHERE target_note_id = ?1)
+               AND n.trashed = 0
              GROUP BY n.id
              ORDER BY n.updated_at DESC"
         );
         let mut stmt = conn.prepare(&sql).map_err(map_err)?;
         let rows = stmt
-            .query_map(params![pattern, id.as_str()], row_to_note)
+            .query_map(params![id.as_str()], row_to_note)
             .map_err(map_err)?
             .collect::<rusqlite::Result<_>>()
             .map_err(map_err)?;
@@ -418,6 +403,30 @@ impl NoteReader for SqliteNoteReader {
             .map_err(map_err)?;
         let rows = stmt
             .query_map([], |row| row.get(0))
+            .map_err(map_err)?
+            .collect::<rusqlite::Result<_>>()
+            .map_err(map_err)?;
+        Ok(rows)
+    }
+
+    fn get_all_note_summaries(&self) -> Result<Vec<NoteSummary>, DomainError> {
+        let conn = self.conn.lock().map_err(map_err)?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, title, created_at, substr(content, 1, 80)
+                 FROM notes WHERE title != '' AND trashed = 0
+                 ORDER BY title COLLATE NOCASE",
+            )
+            .map_err(map_err)?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(NoteSummary {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    created_at: row.get(2)?,
+                    snippet: row.get(3)?,
+                })
+            })
             .map_err(map_err)?
             .collect::<rusqlite::Result<_>>()
             .map_err(map_err)?;
@@ -680,7 +689,10 @@ mod tests {
         let target = accepted_note("Target Note", "original content");
         let linker = accepted_note(
             "Linker",
-            "see [Target Note](<wikilink:Target Note>) for more",
+            &format!(
+                "see [Target Note](wikilink:{}) for more",
+                target.id.as_str()
+            ),
         );
         repo.save(&target).unwrap();
         repo.save(&linker).unwrap();

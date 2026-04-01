@@ -13,5 +13,10 @@ pub trait NoteRepository: Send + Sync {
     fn accept(&self, id: &NoteId) -> Result<(), DomainError>;
     fn move_to_inbox(&self, id: &NoteId) -> Result<(), DomainError>;
     fn set_image(&self, id: &NoteId, path: &str) -> Result<(), DomainError>;
-    fn rename_wikilinks(&self, old_title: &str, new_title: &str) -> Result<(), DomainError>;
+    fn update_wikilink_display_text(
+        &self,
+        note_id: &NoteId,
+        old_title: &str,
+        new_title: &str,
+    ) -> Result<(), DomainError>;
 }

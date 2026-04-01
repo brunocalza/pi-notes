@@ -3,6 +3,7 @@ use rusqlite::{params, Connection, Transaction};
 use std::sync::{Arc, Mutex};
 
 use crate::application::ports::note_repository::NoteRepository;
+use crate::domain::wikilink::extract_wikilink_ids;
 use crate::domain::{
     date::extract_dates,
     error::DomainError,
@@ -73,6 +74,20 @@ impl SqliteNoteRepository {
         }
         Ok(())
     }
+
+    fn replace_links(tx: &Transaction, note: &Note) -> Result<()> {
+        tx.execute(
+            "DELETE FROM note_links WHERE source_note_id = ?1",
+            params![note.id.as_str()],
+        )?;
+        for target_id in extract_wikilink_ids(&note.content) {
+            tx.execute(
+                "INSERT OR IGNORE INTO note_links (source_note_id, target_note_id) VALUES (?1, ?2)",
+                params![note.id.as_str(), target_id],
+            )?;
+        }
+        Ok(())
+    }
 }
 
 fn map_err(e: impl std::fmt::Display) -> DomainError {
@@ -83,7 +98,7 @@ fn map_err(e: impl std::fmt::Display) -> DomainError {
 pub(crate) fn test_db() -> Arc<Mutex<Connection>> {
     let conn = Connection::open_in_memory().unwrap();
     conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
-    crate::infrastructure::schema::apply_schema(&conn).unwrap();
+    crate::infrastructure::schema::run_migrations(&conn).unwrap();
     Arc::new(Mutex::new(conn))
 }
 
@@ -94,6 +109,7 @@ impl NoteRepository for SqliteNoteRepository {
         Self::save_note(&tx, note).map_err(map_err)?;
         Self::replace_tags(&tx, note).map_err(map_err)?;
         Self::replace_dates(&tx, note).map_err(map_err)?;
+        Self::replace_links(&tx, note).map_err(map_err)?;
         tx.commit().map_err(map_err)?;
         Ok(())
     }
@@ -162,12 +178,17 @@ impl NoteRepository for SqliteNoteRepository {
         Ok(())
     }
 
-    fn rename_wikilinks(&self, old_title: &str, new_title: &str) -> Result<(), DomainError> {
+    fn update_wikilink_display_text(
+        &self,
+        note_id: &NoteId,
+        old_title: &str,
+        new_title: &str,
+    ) -> Result<(), DomainError> {
         if old_title.is_empty() || old_title == new_title {
             return Ok(());
         }
-        let old_link = format!("[{old_title}](<wikilink:{old_title}>)");
-        let new_link = format!("[{new_title}](<wikilink:{new_title}>)");
+        let old_link = format!("[{old_title}](wikilink:{})", note_id.as_str());
+        let new_link = format!("[{new_title}](wikilink:{})", note_id.as_str());
         let conn = self.conn.lock().map_err(map_err)?;
         conn.execute(
             "UPDATE notes SET content = REPLACE(content, ?1, ?2) WHERE instr(content, ?1) > 0",
@@ -303,29 +324,43 @@ mod tests {
     }
 
     #[test]
-    fn rename_wikilinks_updates_content() {
+    fn update_wikilink_display_text_updates_content() {
         let (repo, reader) = repo();
         let target = Note::create("Old Title".into(), "target content".into(), vec![]);
+        let target_id = target.id.clone();
         let linker = Note::create(
             "Linker".into(),
-            "see [Old Title](<wikilink:Old Title>) here".into(),
+            format!("see [Old Title](wikilink:{}) here", target_id.as_str()).into(),
             vec![],
         );
         repo.save(&target).unwrap();
         repo.save(&linker).unwrap();
-        repo.rename_wikilinks("Old Title", "New Title").unwrap();
+        repo.update_wikilink_display_text(&target_id, "Old Title", "New Title")
+            .unwrap();
         let found = reader.get_note(linker.id.clone()).unwrap().unwrap();
-        assert_eq!(found.content, "see [New Title](<wikilink:New Title>) here");
+        assert_eq!(
+            found.content,
+            format!("see [New Title](wikilink:{}) here", target_id.as_str())
+        );
     }
 
     #[test]
-    fn rename_wikilinks_noop_when_titles_equal() {
+    fn update_wikilink_display_text_noop_when_titles_equal() {
         let (repo, reader) = repo();
-        let n = Note::create("N".into(), "see [Foo](<wikilink:Foo>) here".into(), vec![]);
+        let target_id = NoteId("some-id".into());
+        let n = Note::create(
+            "N".into(),
+            format!("see [Foo](wikilink:{}) here", target_id.as_str()).into(),
+            vec![],
+        );
         repo.save(&n).unwrap();
-        repo.rename_wikilinks("Foo", "Foo").unwrap();
+        repo.update_wikilink_display_text(&target_id, "Foo", "Foo")
+            .unwrap();
         let found = reader.get_note(n.id.clone()).unwrap().unwrap();
-        assert_eq!(found.content, "see [Foo](<wikilink:Foo>) here");
+        assert_eq!(
+            found.content,
+            format!("see [Foo](wikilink:{}) here", target_id.as_str())
+        );
     }
 
     #[test]

@@ -97,3 +97,27 @@ export function setImageWidth(src: string, width: number): string {
 export function filterTitles(allTitles: string[], query: string, limit = 8): string[] {
   return allTitles.filter((t) => t.toLowerCase().includes(query.toLowerCase())).slice(0, limit);
 }
+
+import type { NoteSummary } from "../types";
+
+/** Filter note summaries by title query, returning up to `limit` results. */
+export function filterSummaries(
+  allSummaries: NoteSummary[],
+  query: string,
+  limit = 8
+): NoteSummary[] {
+  return allSummaries
+    .filter((s) => s.title.toLowerCase().includes(query.toLowerCase()))
+    .slice(0, limit);
+}
+
+/** Check if a title appears more than once in a list of summaries. */
+export function hasDuplicateTitle(summaries: NoteSummary[], title: string): boolean {
+  return summaries.filter((s) => s.title === title).length > 1;
+}
+
+/** Format a millisecond timestamp as a short date string for disambiguation. */
+export function formatShortDate(ms: number): string {
+  const d = new Date(ms);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}

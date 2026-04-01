@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { AttachmentMeta, Collection, Note, TagEntry } from "./types";
+import { AttachmentMeta, Collection, Note, NoteSummary, TagEntry } from "./types";
 
 export interface Cursor {
   ts: number;
@@ -77,6 +77,8 @@ export const api = {
   getBacklinks: (id: string) => invoke<Note[]>("get_backlinks", { id }),
 
   getAllNoteTitles: () => invoke<string[]>("get_all_note_titles"),
+
+  getAllNoteSummaries: () => invoke<NoteSummary[]>("get_all_note_summaries"),
 
   getNoteByTitle: (title: string) => invoke<Note | null>("get_note_by_title", { title }),
 

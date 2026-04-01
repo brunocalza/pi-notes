@@ -77,7 +77,8 @@ impl AppService {
         let tags = cmd.tags.iter().filter_map(|t| Tag::parse(t)).collect();
         if note.apply_edit(cmd.title, cmd.content, tags) {
             if note.title != old_title {
-                self.notes.rename_wikilinks(&old_title, &note.title)?;
+                self.notes
+                    .update_wikilink_display_text(&note.id, &old_title, &note.title)?;
             }
             self.notes.save(&note)?;
         }
@@ -270,6 +271,12 @@ impl AppService {
         self.reader.get_all_note_titles()
     }
 
+    pub fn get_all_note_summaries(
+        &self,
+    ) -> Result<Vec<crate::application::queries::note::NoteSummary>, DomainError> {
+        self.reader.get_all_note_summaries()
+    }
+
     pub fn get_days_with_notes_in_month(&self, year_month: &str) -> Result<Vec<u32>, DomainError> {
         self.reader.get_days_with_notes_in_month(year_month)
     }
@@ -367,7 +374,7 @@ mod tests {
         let linker_id = create(
             &svc,
             "Linker",
-            "see [Old Title](<wikilink:Old Title>) here",
+            &format!("see [Old Title](wikilink:{}) here", target_id.as_str()),
             vec![],
         );
         svc.update_note(UpdateNote {
@@ -378,8 +385,9 @@ mod tests {
         })
         .unwrap();
         let linker = svc.get_note(linker_id).unwrap().unwrap();
-        assert!(linker.content.contains("[New Title](<wikilink:New Title>)"));
-        assert!(!linker.content.contains("wikilink:Old Title"));
+        let expected = format!("[New Title](wikilink:{})", target_id.as_str());
+        assert!(linker.content.contains(&expected));
+        assert!(!linker.content.contains("Old Title"));
     }
 
     #[test]
@@ -569,7 +577,12 @@ mod tests {
         let svc = make_service();
         let target_id = create(&svc, "Target", "c", vec![]);
         svc.accept_note(target_id.clone()).unwrap();
-        let linker_id = create(&svc, "Linker", "see [Target](<wikilink:Target>)", vec![]);
+        let linker_id = create(
+            &svc,
+            "Linker",
+            &format!("see [Target](wikilink:{})", target_id.as_str()),
+            vec![],
+        );
         svc.accept_note(linker_id.clone()).unwrap();
         let links = svc.get_backlinks(target_id).unwrap();
         assert!(links.iter().any(|n| n.id == linker_id));

@@ -29,7 +29,7 @@ import { createRoot } from "react-dom/client";
 import * as nodeEmoji from "node-emoji";
 import { FileText, Plus, Pencil, Unlink, Check } from "lucide-react";
 import { api } from "../api";
-import { AttachmentMeta } from "../types";
+import { AttachmentMeta, NoteSummary } from "../types";
 import DatePicker from "./DatePicker";
 import {
   formatDateLabel,
@@ -37,7 +37,9 @@ import {
   LANGUAGES,
   parseImageWidth,
   setImageWidth,
-  filterTitles,
+  filterSummaries,
+  hasDuplicateTitle,
+  formatShortDate,
 } from "./milkdown-utils";
 
 interface Props {
@@ -137,7 +139,7 @@ export function WikilinkEditPopover({
   rect,
   query,
   activeIdx,
-  allTitles,
+  allSummaries,
   popoverRef,
   onQueryChange,
   onSelect,
@@ -147,14 +149,14 @@ export function WikilinkEditPopover({
   rect: { top: number; bottom: number; left: number };
   query: string;
   activeIdx: number;
-  allTitles: string[];
+  allSummaries: NoteSummary[];
   popoverRef: RefObject<HTMLDivElement | null>;
   onQueryChange: (q: string) => void;
-  onSelect: (title: string) => void;
+  onSelect: (note: { id: string; title: string }) => void;
   onClose: () => void;
   onActiveIdxChange: (idx: number) => void;
 }) {
-  const filtered = filterTitles(allTitles, query);
+  const filtered = filterSummaries(allSummaries, query);
 
   return (
     <div
@@ -191,22 +193,33 @@ export function WikilinkEditPopover({
         className="w-full px-3 py-2 text-xs bg-transparent border-b bc-ui outline-none"
       />
       <div className="max-h-48 overflow-y-auto">
-        {filtered.map((title, index) => (
-          <button
-            key={title}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              onSelect(title);
-            }}
-            onMouseEnter={() => onActiveIdxChange(index)}
-            className={`flex items-center gap-2 w-full px-3 py-2 text-xs text-left transition-colors ${
-              activeIdx === index ? "bg-raised text-hi" : "text-md hover:bg-lift"
-            }`}
-          >
-            <FileText size={11} className="text-ghost shrink-0" />
-            {title}
-          </button>
-        ))}
+        {filtered.map((s, index) => {
+          const showDisambig = hasDuplicateTitle(filtered, s.title);
+          return (
+            <button
+              key={s.id}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onSelect(s);
+              }}
+              onMouseEnter={() => onActiveIdxChange(index)}
+              className={`flex items-center gap-2 w-full px-3 py-2 text-xs text-left transition-colors ${
+                activeIdx === index ? "bg-raised text-hi" : "text-md hover:bg-lift"
+              }`}
+            >
+              <FileText size={11} className="text-ghost shrink-0" />
+              <span className="flex flex-col min-w-0">
+                <span className="truncate">{s.title}</span>
+                {showDisambig && (
+                  <span className="text-ghost text-[10px] truncate">
+                    {formatShortDate(s.created_at)}
+                    {s.snippet ? ` — ${s.snippet}` : ""}
+                  </span>
+                )}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -229,13 +242,13 @@ function MilkdownEditorInner({
   const onCommitRef = useRef(onCommit);
   const onNavigateRef = useRef(onNavigate);
   const onDateSelectRef = useRef(onDateSelect);
-  const [allTitles, setAllTitles] = useState<string[]>([]);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [allSummaries, setAllSummaries] = useState<NoteSummary[]>([]);
+  const [suggestions, setSuggestions] = useState<NoteSummary[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [wikilinkQuery, setWikilinkQuery] = useState<string | null>(null);
   const [cursorCoords, setCursorCoords] = useState<CursorCoords | null>(null);
   const wikilinkRangeRef = useRef<WikilinkRange | null>(null);
-  const suggestionsRef = useRef<string[]>([]);
+  const suggestionsRef = useRef<NoteSummary[]>([]);
   const wikilinkQueryRef = useRef<string | null>(null);
   const [emojiSuggestions, setEmojiSuggestions] = useState<EmojiResult[]>([]);
   const [emojiActiveIdx, setEmojiActiveIdx] = useState(0);
@@ -285,8 +298,8 @@ function MilkdownEditorInner({
 
   useEffect(() => {
     api
-      .getAllNoteTitles()
-      .then(setAllTitles)
+      .getAllNoteSummaries()
+      .then(setAllSummaries)
       .catch(() => {});
   }, []);
 
@@ -735,24 +748,7 @@ function MilkdownEditorInner({
     const { text, offset, startPos } = info;
     const before = text.slice(0, offset);
 
-    // Auto-replace completed [[title]]
-    const completedWikilink = before.match(/\[\[([^\]]+)\]\]$/);
-    if (completedWikilink) {
-      const title = completedWikilink[1];
-      const len = completedWikilink[0].length;
-      const replaceStart = startPos + before.length - len;
-      const replaceEnd = view.state.selection.from;
-      const linkMark = view.state.schema.marks.link?.create({ href: `wikilink:${title}` });
-      const textNode = view.state.schema.text(title, linkMark ? [linkMark] : []);
-      const tr = view.state.tr.replaceWith(replaceStart, replaceEnd, textNode);
-      view.dispatch(tr.setSelection(TextSelection.create(tr.doc, replaceStart + title.length)));
-      setSuggestions([]);
-      setWikilinkQuery(null);
-      wikilinkRangeRef.current = null;
-      return;
-    }
-
-    // Wikilink autocomplete
+    // Wikilink autocomplete (triggered by typing [[)
     const wikilinkMatch = before.match(/\[\[([^\]]*)$/);
     if (wikilinkMatch) {
       const query = wikilinkMatch[1];
@@ -762,9 +758,7 @@ function MilkdownEditorInner({
         startPos: startPos + openIdx,
         endPos: view.state.selection.from,
       };
-      setSuggestions(
-        allTitles.filter((t) => t.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
-      );
+      setSuggestions(filterSummaries(allSummaries, query));
       setWikilinkQuery(query);
       setActiveIdx(0);
       setEmojiSuggestions([]);
@@ -814,7 +808,7 @@ function MilkdownEditorInner({
 
     setEmojiSuggestions([]);
     emojiRangeRef.current = null;
-  }, [allTitles]);
+  }, [allSummaries]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -843,15 +837,15 @@ function MilkdownEditorInner({
     emojiRangeRef.current = null;
   }, []);
 
-  const commitWikilink = useCallback((title: string) => {
+  const commitWikilink = useCallback((note: { id: string; title: string }) => {
     const view = viewRef.current;
     const range = wikilinkRangeRef.current;
     if (!view || !range) return;
     const { state, dispatch } = view;
-    const linkMark = state.schema.marks.link?.create({ href: `wikilink:${title}` });
-    const textNode = state.schema.text(title, linkMark ? [linkMark] : []);
+    const linkMark = state.schema.marks.link?.create({ href: `wikilink:${note.id}` });
+    const textNode = state.schema.text(note.title, linkMark ? [linkMark] : []);
     const tr = state.tr.replaceWith(range.startPos, range.endPos, textNode);
-    const nextPos = range.startPos + title.length;
+    const nextPos = range.startPos + note.title.length;
     dispatch(tr.setSelection(TextSelection.create(tr.doc, nextPos)));
     view.focus();
     setSuggestions([]);
@@ -862,23 +856,29 @@ function MilkdownEditorInner({
   const createAndCommitWikilink = useCallback(
     async (title: string) => {
       try {
-        await api.insertNote(title, "", []);
-        setAllTitles((prev) => [...prev, title]);
-        commitWikilink(title);
+        const newId = await api.insertNote(title, "", []);
+        setAllSummaries((prev) => [
+          ...prev,
+          { id: newId, title, created_at: Date.now(), snippet: "" },
+        ]);
+        commitWikilink({ id: newId, title });
       } catch {
-        commitWikilink(title);
+        // If creation fails, still dismiss the autocomplete
+        setSuggestions([]);
+        setWikilinkQuery(null);
+        wikilinkRangeRef.current = null;
       }
     },
     [commitWikilink]
   );
 
   const commitEditWikilink = useCallback(
-    (title: string) => {
+    (note: { id: string; title: string }) => {
       const view = viewRef.current;
       if (!view || !editingWikilink) return;
       const { state } = view;
-      const linkMark = state.schema.marks.link?.create({ href: `wikilink:${title}` });
-      const textNode = state.schema.text(title, linkMark ? [linkMark] : []);
+      const linkMark = state.schema.marks.link?.create({ href: `wikilink:${note.id}` });
+      const textNode = state.schema.text(note.title, linkMark ? [linkMark] : []);
       const tr = state.tr.replaceWith(editingWikilink.from, editingWikilink.to, textNode);
       view.dispatch(tr);
       view.focus();
@@ -1096,11 +1096,16 @@ function MilkdownEditorInner({
         if (isDate) {
           onDateSelectRef.current?.(href.slice("date:".length));
         } else if (isWikilink) {
-          const title = href.slice("wikilink:".length);
-          void api
-            .getNoteByTitle(title)
-            .then((linked) => linked && onNavigateRef.current(linked.id))
-            .catch(() => {});
+          const noteId = href.slice("wikilink:".length);
+          // ID-based links: navigate directly. Fallback for legacy title-based links.
+          if (noteId.length === 36 && noteId.includes("-")) {
+            onNavigateRef.current(noteId);
+          } else {
+            void api
+              .getNoteByTitle(noteId)
+              .then((linked) => linked && onNavigateRef.current(linked.id))
+              .catch(() => {});
+          }
         }
         return;
       }
@@ -1147,22 +1152,33 @@ function MilkdownEditorInner({
             }}
             className="bg-field border bc-ui rounded-md shadow-xl z-50 overflow-hidden max-h-48 overflow-y-auto w-64"
           >
-            {suggestions.map((title, index) => (
-              <button
-                key={title}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  commitWikilink(title);
-                }}
-                onMouseEnter={() => setActiveIdx(index)}
-                className={`flex items-center gap-2 w-full px-3 py-2 text-xs text-left transition-colors ${
-                  activeIdx === index ? "bg-raised text-hi" : "text-md hover:bg-lift"
-                }`}
-              >
-                <FileText size={11} className="text-ghost shrink-0" />
-                {title}
-              </button>
-            ))}
+            {suggestions.map((s, index) => {
+              const showDisambig = hasDuplicateTitle(suggestions, s.title);
+              return (
+                <button
+                  key={s.id}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    commitWikilink(s);
+                  }}
+                  onMouseEnter={() => setActiveIdx(index)}
+                  className={`flex items-center gap-2 w-full px-3 py-2 text-xs text-left transition-colors ${
+                    activeIdx === index ? "bg-raised text-hi" : "text-md hover:bg-lift"
+                  }`}
+                >
+                  <FileText size={11} className="text-ghost shrink-0" />
+                  <span className="flex flex-col min-w-0">
+                    <span className="truncate">{s.title}</span>
+                    {showDisambig && (
+                      <span className="text-ghost text-[10px] truncate">
+                        {formatShortDate(s.created_at)}
+                        {s.snippet ? ` — ${s.snippet}` : ""}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
             {suggestions.length === 0 && wikilinkQuery && wikilinkQuery.trim() !== "" && (
               <button
                 onMouseDown={(e) => {
@@ -1245,7 +1261,7 @@ function MilkdownEditorInner({
           rect={editingWikilink.rect}
           query={editWikilinkQuery}
           activeIdx={editWikilinkActiveIdx}
-          allTitles={allTitles}
+          allSummaries={allSummaries}
           popoverRef={editWikilinkRef}
           onQueryChange={(q) => {
             setEditWikilinkQuery(q);

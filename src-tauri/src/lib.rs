@@ -71,6 +71,7 @@ pub fn run() {
             get_notes_by_tag,
             get_all_tags,
             get_all_note_titles,
+            get_all_note_summaries,
             rename_tag,
             delete_tag,
             set_note_image,

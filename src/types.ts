@@ -30,6 +30,13 @@ export interface Collection {
   note_count: number;
 }
 
+export interface NoteSummary {
+  id: string;
+  title: string;
+  created_at: number;
+  snippet: string;
+}
+
 export type TagEntry = [string, number]; // [tag_name, count]
 
 export type View =
