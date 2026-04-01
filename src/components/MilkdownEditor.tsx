@@ -90,7 +90,8 @@ function buildBubbleMenuDom(viewRef: RefObject<EditorView | null>): HTMLDivEleme
     const b = document.createElement("button");
     b.type = "button";
     b.title = title;
-    b.innerHTML = icon;
+    const parsed = new DOMParser().parseFromString(icon, "image/svg+xml");
+    b.appendChild(b.ownerDocument.importNode(parsed.documentElement, true));
     b.addEventListener("mousedown", (e) => {
       e.preventDefault();
       action();
@@ -1341,6 +1342,13 @@ function MilkdownEditorInner({
                     e.preventDefault();
                     const url = linkPopoverUrl.trim();
                     if (!url) return;
+                    const lowerUrl = url.toLowerCase();
+                    if (
+                      lowerUrl.startsWith("javascript:") ||
+                      lowerUrl.startsWith("data:") ||
+                      lowerUrl.startsWith("vbscript:")
+                    )
+                      return;
                     const view = viewRef.current;
                     if (view) {
                       const markType = view.state.schema.marks.link;
@@ -1366,6 +1374,13 @@ function MilkdownEditorInner({
                   e.preventDefault();
                   const url = linkPopoverUrl.trim();
                   if (!url) return;
+                  const lowerUrl = url.toLowerCase();
+                  if (
+                    lowerUrl.startsWith("javascript:") ||
+                    lowerUrl.startsWith("data:") ||
+                    lowerUrl.startsWith("vbscript:")
+                  )
+                    return;
                   const view = viewRef.current;
                   if (view) {
                     const markType = view.state.schema.marks.link;

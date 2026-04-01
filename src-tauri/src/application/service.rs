@@ -193,6 +193,13 @@ impl AppService {
     // -------------------------------------------------------------------------
 
     pub fn add_attachment(&self, cmd: AddAttachment) -> Result<AttachmentId, DomainError> {
+        const MAX_ATTACHMENT_SIZE: usize = 100 * 1024 * 1024; // 100 MB
+        if cmd.data.len() > MAX_ATTACHMENT_SIZE {
+            return Err(DomainError::ValidationError(
+                "Attachment exceeds maximum size of 100 MB".into(),
+            ));
+        }
+        Self::validate_filename(&cmd.filename)?;
         let id = AttachmentId(Uuid::now_v7().to_string());
         let meta = AttachmentMeta {
             id: id.clone(),
@@ -206,7 +213,15 @@ impl AppService {
         Ok(id)
     }
 
+    fn validate_filename(filename: &str) -> Result<(), DomainError> {
+        if filename.contains('/') || filename.contains('\\') || filename.contains("..") {
+            return Err(DomainError::ValidationError("Invalid filename".into()));
+        }
+        Ok(())
+    }
+
     pub fn rename_attachment(&self, cmd: RenameAttachment) -> Result<(), DomainError> {
+        Self::validate_filename(&cmd.filename)?;
         let mut meta = self
             .reader
             .get_attachment_meta(cmd.id.clone())?
@@ -847,6 +862,61 @@ mod tests {
             })
             .unwrap_err();
         assert!(matches!(err, DomainError::ValidationError(_)));
+    }
+
+    #[test]
+    fn add_attachment_rejects_path_traversal() {
+        let svc = make_service();
+        let nid = create(&svc, "N", "c", vec![]);
+        for bad in ["../evil.png", "sub/file.png", "back\\slash.png"] {
+            let err = svc
+                .add_attachment(AddAttachment {
+                    note_id: nid.clone(),
+                    filename: bad.into(),
+                    mime_type: "image/png".into(),
+                    data: vec![0],
+                })
+                .unwrap_err();
+            assert!(matches!(err, DomainError::ValidationError(_)));
+        }
+    }
+
+    #[test]
+    fn add_attachment_rejects_oversized() {
+        let svc = make_service();
+        let nid = create(&svc, "N", "c", vec![]);
+        let err = svc
+            .add_attachment(AddAttachment {
+                note_id: nid,
+                filename: "big.bin".into(),
+                mime_type: "application/octet-stream".into(),
+                data: vec![0; 100 * 1024 * 1024 + 1],
+            })
+            .unwrap_err();
+        assert!(matches!(err, DomainError::ValidationError(_)));
+    }
+
+    #[test]
+    fn rename_attachment_rejects_path_traversal() {
+        let svc = make_service();
+        let nid = create(&svc, "N", "c", vec![]);
+        let aid = svc
+            .add_attachment(AddAttachment {
+                note_id: nid,
+                filename: "ok.png".into(),
+                mime_type: "image/png".into(),
+                data: vec![0],
+            })
+            .unwrap();
+        for bad in ["../evil.png", "sub/file.png", "back\\slash.png"] {
+            let err = svc
+                .rename_attachment(RenameAttachment {
+                    id: aid.clone(),
+                    filename: bad.into(),
+                })
+                .unwrap_err();
+            assert!(matches!(err, DomainError::ValidationError(_)));
+        }
     }
 
     #[test]

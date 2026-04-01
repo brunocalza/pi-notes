@@ -2,6 +2,7 @@
   "name": "pi-notes",
   "private": true,
   "version": "0.0.2",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "tauri": "tauri",

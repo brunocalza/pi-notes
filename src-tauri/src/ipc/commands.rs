@@ -167,6 +167,9 @@ pub fn get_backlinks(state: State<AppState>, id: String) -> Result<Vec<Note>, St
 
 #[tauri::command]
 pub fn get_notes_by_date(state: State<AppState>, date: String) -> Result<Vec<Note>, String> {
+    if chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d").is_err() {
+        return Err("Invalid date format, expected YYYY-MM-DD".to_string());
+    }
     state
         .service
         .get_notes_by_date(GetNotesByDate { date })
@@ -178,6 +181,9 @@ pub fn get_days_with_notes_in_month(
     state: State<AppState>,
     year_month: String,
 ) -> Result<Vec<u32>, String> {
+    if chrono::NaiveDate::parse_from_str(&format!("{year_month}-01"), "%Y-%m-%d").is_err() {
+        return Err("Invalid year-month format, expected YYYY-MM".to_string());
+    }
     state
         .service
         .get_days_with_notes_in_month(&year_month)
@@ -371,9 +377,6 @@ pub fn add_attachment(
     mime_type: String,
     data: Vec<u8>,
 ) -> Result<String, String> {
-    if filename.contains('/') || filename.contains('\\') || filename.contains("..") {
-        return Err("Invalid filename".to_string());
-    }
     let id = state
         .service
         .add_attachment(AddAttachment {
@@ -382,7 +385,7 @@ pub fn add_attachment(
             mime_type,
             data,
         })
-        .map_err(to_ipc_err)?;
+        .map_err(to_user_err)?;
     Ok(id.to_string())
 }
 
@@ -426,7 +429,7 @@ pub fn rename_attachment(
             id: AttachmentId(id),
             filename,
         })
-        .map_err(to_ipc_err)
+        .map_err(to_user_err)
 }
 
 #[tauri::command]
@@ -449,21 +452,7 @@ pub fn open_attachment(state: State<AppState>, id: String) -> Result<(), String>
         .ok_or_else(|| "Invalid attachment filename".to_string())?;
     let path = std::env::temp_dir().join(safe_name);
     std::fs::write(&path, &data).map_err(to_ipc_err)?;
-    #[cfg(target_os = "linux")]
-    std::process::Command::new("xdg-open")
-        .arg(&path)
-        .spawn()
-        .map_err(to_ipc_err)?;
-    #[cfg(target_os = "macos")]
-    std::process::Command::new("open")
-        .arg(&path)
-        .spawn()
-        .map_err(to_ipc_err)?;
-    #[cfg(target_os = "windows")]
-    std::process::Command::new("cmd")
-        .args(["/C", "start", "", &path.to_string_lossy()])
-        .spawn()
-        .map_err(to_ipc_err)?;
+    open::that_detached(&path).map_err(to_ipc_err)?;
     Ok(())
 }
 
@@ -589,20 +578,6 @@ pub fn open_url(url: String) -> Result<(), String> {
     {
         return Err("Unsupported URL scheme".to_string());
     }
-    #[cfg(target_os = "linux")]
-    std::process::Command::new("xdg-open")
-        .arg(&url)
-        .spawn()
-        .map_err(to_ipc_err)?;
-    #[cfg(target_os = "macos")]
-    std::process::Command::new("open")
-        .arg(&url)
-        .spawn()
-        .map_err(to_ipc_err)?;
-    #[cfg(target_os = "windows")]
-    std::process::Command::new("cmd")
-        .args(["/C", "start", "", &url])
-        .spawn()
-        .map_err(to_ipc_err)?;
+    open::that_detached(&url).map_err(to_ipc_err)?;
     Ok(())
 }
