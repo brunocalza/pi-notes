@@ -337,6 +337,13 @@ pub fn get_all_note_titles(state: State<AppState>) -> Result<Vec<String>, String
 }
 
 #[tauri::command]
+pub fn get_all_note_summaries(
+    state: State<AppState>,
+) -> Result<Vec<crate::application::queries::note::NoteSummary>, String> {
+    state.service.get_all_note_summaries().map_err(to_ipc_err)
+}
+
+#[tauri::command]
 pub fn rename_tag(state: State<AppState>, old_tag: String, new_tag: String) -> Result<(), String> {
     state
         .service

@@ -21,6 +21,7 @@ vi.mock("../api", () => ({
     acceptNote: vi.fn().mockResolvedValue(undefined),
     moveToInbox: vi.fn().mockResolvedValue(undefined),
     getAllNoteTitles: vi.fn().mockResolvedValue([]),
+    getAllNoteSummaries: vi.fn().mockResolvedValue([]),
     getAttachments: vi.fn().mockResolvedValue([]),
     addAttachment: vi.fn().mockResolvedValue("attachment-id"),
     deleteAttachment: vi.fn().mockResolvedValue(undefined),

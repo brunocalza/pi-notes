@@ -62,6 +62,7 @@ vi.mock("./api", () => ({
     renameTag: vi.fn().mockResolvedValue(undefined),
     deleteTag: vi.fn().mockResolvedValue(undefined),
     getAllNoteTitles: vi.fn().mockResolvedValue([]),
+    getAllNoteSummaries: vi.fn().mockResolvedValue([]),
     getNote: vi.fn().mockResolvedValue(null),
     getNoteByTitle: vi.fn().mockResolvedValue(null),
     getBacklinks: vi.fn().mockResolvedValue([]),

@@ -39,3 +39,11 @@ pub struct GetNotesByCollection {
     pub limit: i64,
     pub cursor: Option<Cursor>,
 }
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct NoteSummary {
+    pub id: String,
+    pub title: String,
+    pub created_at: i64,
+    pub snippet: String,
+}
