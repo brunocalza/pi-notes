@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::NaiveDate;
 use rusqlite::{params, Connection};
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -81,6 +82,12 @@ pub fn apply_schema(conn: &Connection) -> Result<()> {
     migrate_ids_to_uuid(conn)?;
     // Add collections support (idempotent)
     add_collection_support_if_needed(conn)?;
+    // Rewrite [[wikilinks]] and bare YYYY-MM-DD dates for the live editor
+    migrate_content_for_live_editor(conn)?;
+    // Fix wikilink URLs to use angle brackets (spaces break bare URLs)
+    fix_wikilink_angle_brackets(conn)?;
+    // Fix backslash-escaped wikilinks from Milkdown serializer
+    fix_escaped_wikilinks(conn)?;
     Ok(())
 }
 
@@ -516,4 +523,510 @@ fn migrate_timestamps_if_needed(conn: &Connection) -> Result<()> {
     conn.execute_batch("INSERT INTO notes_fts(notes_fts) VALUES('rebuild');")?;
 
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Content migration for live editor (user_version 0 → 1)
+// ---------------------------------------------------------------------------
+// Rewrites note content:
+//   [[title]]       → [title](wikilink:title)
+//   2026-03-12      → [Mar 12, 2026](date:2026-03-12)
+
+fn migrate_content_for_live_editor(conn: &Connection) -> Result<()> {
+    let version: i32 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+    if version >= 1 {
+        return Ok(());
+    }
+
+    let table_exists: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='notes'",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .map(|n| n > 0)
+        .unwrap_or(false);
+
+    if !table_exists {
+        conn.execute_batch("PRAGMA user_version = 1")?;
+        return Ok(());
+    }
+
+    let mut stmt = conn.prepare("SELECT id, content FROM notes")?;
+    let notes: Vec<(String, String)> = stmt
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+
+    let mut update_stmt = conn.prepare("UPDATE notes SET content = ?1 WHERE id = ?2")?;
+
+    for (id, content) in &notes {
+        let rewritten = rewrite_wikilinks(content);
+        let rewritten = rewrite_dates(&rewritten);
+        if rewritten != *content {
+            update_stmt.execute(params![rewritten, id])?;
+        }
+    }
+
+    conn.execute_batch("INSERT INTO notes_fts(notes_fts) VALUES('rebuild');")?;
+    conn.execute_batch("PRAGMA user_version = 1")?;
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Fix wikilink angle brackets (user_version 1 → 2)
+// ---------------------------------------------------------------------------
+// Fixes `](wikilink:title)` → `](<wikilink:title>)` for links that were
+// created without angle brackets (spaces in URLs break CommonMark parsing).
+
+fn fix_wikilink_angle_brackets(conn: &Connection) -> Result<()> {
+    let version: i32 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+    if version >= 2 {
+        return Ok(());
+    }
+
+    let table_exists: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='notes'",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .map(|n| n > 0)
+        .unwrap_or(false);
+
+    if !table_exists {
+        conn.execute_batch("PRAGMA user_version = 2")?;
+        return Ok(());
+    }
+
+    // Only update notes that have bare `](wikilink:` (without angle brackets)
+    conn.execute(
+        r#"UPDATE notes
+           SET content = REPLACE(content, '](wikilink:', '](<wikilink:')
+           WHERE instr(content, '](wikilink:') > 0
+             AND instr(content, '](<wikilink:') = 0"#,
+        [],
+    )?;
+    // Fix the closing: `)` after the title needs `>)` instead.
+    // We can't do this with a single REPLACE because we'd match all `)`.
+    // Instead, load remaining notes that have `](<wikilink:` but are missing `>)`.
+    let mut stmt =
+        conn.prepare("SELECT id, content FROM notes WHERE instr(content, '](<wikilink:') > 0")?;
+    let notes: Vec<(String, String)> = stmt
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+
+    let mut update_stmt = conn.prepare("UPDATE notes SET content = ?1 WHERE id = ?2")?;
+    for (id, content) in &notes {
+        let fixed = add_wikilink_closing_brackets(content);
+        if fixed != *content {
+            update_stmt.execute(params![fixed, id])?;
+        }
+    }
+
+    conn.execute_batch("INSERT INTO notes_fts(notes_fts) VALUES('rebuild');")?;
+    conn.execute_batch("PRAGMA user_version = 2")?;
+    Ok(())
+}
+
+/// For each `](<wikilink:TITLE)` (missing closing `>`), fix to `](<wikilink:TITLE>)`.
+fn add_wikilink_closing_brackets(content: &str) -> String {
+    let needle = "](<wikilink:";
+    let mut result = String::with_capacity(content.len());
+    let mut rest = content;
+
+    while let Some(start) = rest.find(needle) {
+        result.push_str(&rest[..start + needle.len()]);
+        rest = &rest[start + needle.len()..];
+        // Find the closing `)` — that's the end of the URL
+        if let Some(close) = rest.find(')') {
+            let title_part = &rest[..close];
+            if title_part.ends_with('>') {
+                // Already has angle bracket — copy as-is
+                result.push_str(&rest[..=close]);
+            } else {
+                // Add closing `>` before `)`
+                result.push_str(title_part);
+                result.push('>');
+                result.push(')');
+            }
+            rest = &rest[close + 1..];
+        }
+    }
+    result.push_str(rest);
+    result
+}
+
+// ---------------------------------------------------------------------------
+// Fix escaped wikilinks (user_version 2 → 3)
+// ---------------------------------------------------------------------------
+// Milkdown's serializer sometimes escapes wikilinks as:
+//   \[title]\(wikilink:title)
+// This migration converts them to proper markdown links:
+//   [title](<wikilink:title>)
+
+fn fix_escaped_wikilinks(conn: &Connection) -> Result<()> {
+    let version: i32 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+    if version >= 3 {
+        return Ok(());
+    }
+
+    let table_exists: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='notes'",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .map(|n| n > 0)
+        .unwrap_or(false);
+
+    if !table_exists {
+        conn.execute_batch("PRAGMA user_version = 3")?;
+        return Ok(());
+    }
+
+    let mut stmt =
+        conn.prepare(r"SELECT id, content FROM notes WHERE content LIKE '%\(wikilink:%'")?;
+    let notes: Vec<(String, String)> = stmt
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+
+    let mut update_stmt = conn.prepare("UPDATE notes SET content = ?1 WHERE id = ?2")?;
+    for (id, content) in &notes {
+        let fixed = unescape_wikilinks(content);
+        if fixed != *content {
+            update_stmt.execute(params![fixed, id])?;
+        }
+    }
+
+    if !notes.is_empty() {
+        conn.execute_batch("INSERT INTO notes_fts(notes_fts) VALUES('rebuild');")?;
+    }
+    conn.execute_batch("PRAGMA user_version = 3")?;
+    Ok(())
+}
+
+/// Convert `\[title]\(wikilink:title)` to `[title](<wikilink:title>)`.
+fn unescape_wikilinks(content: &str) -> String {
+    let needle = r"\(wikilink:";
+    let mut result = String::with_capacity(content.len());
+    let mut rest = content;
+
+    while let Some(idx) = rest.find(needle) {
+        // Find the closing unescaped `)` after the needle
+        let after_needle = &rest[idx + needle.len()..];
+        let close = match after_needle.find(')') {
+            Some(c) => c,
+            None => {
+                result.push_str(&rest[..idx + needle.len()]);
+                rest = after_needle;
+                continue;
+            }
+        };
+        let title = &after_needle[..close];
+
+        // Look backwards for `\[title]` — the display text portion
+        let display_pattern = format!(r"\[{title}]");
+        let before = &rest[..idx];
+        if before.ends_with(&display_pattern) {
+            // Strip the escaped display text and rebuild as a proper link
+            result.push_str(&before[..before.len() - display_pattern.len()]);
+            result.push_str(&format!("[{title}](<wikilink:{title}>)"));
+        } else {
+            // No matching display text — just fix the URL part
+            result.push_str(&rest[..idx]);
+            result.push_str(&format!("(<wikilink:{title}>)"));
+        }
+        rest = &after_needle[close + 1..];
+    }
+    result.push_str(rest);
+    result
+}
+
+/// Replace `[[title]]` with `[title](<wikilink:title>)`.
+/// Angle brackets are required because titles may contain spaces.
+fn rewrite_wikilinks(content: &str) -> String {
+    let b = content.as_bytes();
+    let len = b.len();
+    let mut out = Vec::with_capacity(len);
+    let mut i = 0;
+
+    while i < len {
+        if i + 1 < len && b[i] == b'[' && b[i + 1] == b'[' {
+            let start = i + 2;
+            let mut end = None;
+            let mut j = start;
+            while j + 1 < len {
+                if b[j] == b'\n' {
+                    break;
+                }
+                if b[j] == b']' && b[j + 1] == b']' {
+                    end = Some(j);
+                    break;
+                }
+                j += 1;
+            }
+            if let Some(end_pos) = end {
+                let title = &content[start..end_pos];
+                if !title.is_empty() {
+                    let replacement = format!("[{title}](<wikilink:{title}>)");
+                    out.extend_from_slice(replacement.as_bytes());
+                    i = end_pos + 2;
+                    continue;
+                }
+            }
+        }
+        out.push(b[i]);
+        i += 1;
+    }
+
+    String::from_utf8(out).unwrap_or_else(|_| content.to_string())
+}
+
+/// Replace bare `YYYY-MM-DD` dates with `[Mon DD, YYYY](date:YYYY-MM-DD)`.
+/// Skips dates already inside a `(date:...)` link.
+fn rewrite_dates(content: &str) -> String {
+    let b = content.as_bytes();
+    let len = b.len();
+    let mut out = Vec::with_capacity(len);
+    let mut i = 0;
+
+    while i < len {
+        if i + 10 <= len
+            && b[i..i + 4].iter().all(|c| c.is_ascii_digit())
+            && b[i + 4] == b'-'
+            && b[i + 5..i + 7].iter().all(|c| c.is_ascii_digit())
+            && b[i + 7] == b'-'
+            && b[i + 8..i + 10].iter().all(|c| c.is_ascii_digit())
+        {
+            let before_ok = i == 0 || !b[i - 1].is_ascii_digit();
+            let after_ok = i + 10 >= len || !b[i + 10].is_ascii_digit();
+            let preceded_by_date_scheme = i >= 5 && &b[i - 5..i] == b"date:";
+
+            if before_ok && after_ok && !preceded_by_date_scheme {
+                let year: i32 = content[i..i + 4].parse().unwrap_or(0);
+                let month: u32 = content[i + 5..i + 7].parse().unwrap_or(0);
+                let day: u32 = content[i + 8..i + 10].parse().unwrap_or(0);
+
+                if let Some(date) = NaiveDate::from_ymd_opt(year, month, day) {
+                    let iso = &content[i..i + 10];
+                    let label = date.format("%b %-d, %Y").to_string();
+                    let replacement = format!("[{label}](date:{iso})");
+                    out.extend_from_slice(replacement.as_bytes());
+                    i += 10;
+                    continue;
+                }
+            }
+        }
+        out.push(b[i]);
+        i += 1;
+    }
+
+    String::from_utf8(out).unwrap_or_else(|_| content.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rewrite_wikilinks_basic() {
+        assert_eq!(
+            rewrite_wikilinks("see [[My Note]] here"),
+            "see [My Note](<wikilink:My Note>) here"
+        );
+    }
+
+    #[test]
+    fn rewrite_wikilinks_multiple() {
+        assert_eq!(
+            rewrite_wikilinks("[[A]] and [[B]]"),
+            "[A](<wikilink:A>) and [B](<wikilink:B>)"
+        );
+    }
+
+    #[test]
+    fn rewrite_wikilinks_no_match() {
+        assert_eq!(rewrite_wikilinks("no links here"), "no links here");
+    }
+
+    #[test]
+    fn rewrite_wikilinks_unclosed() {
+        assert_eq!(rewrite_wikilinks("see [[broken"), "see [[broken");
+    }
+
+    #[test]
+    fn rewrite_wikilinks_newline_inside() {
+        assert_eq!(
+            rewrite_wikilinks("see [[broken\nlink]]"),
+            "see [[broken\nlink]]"
+        );
+    }
+
+    #[test]
+    fn rewrite_dates_basic() {
+        assert_eq!(
+            rewrite_dates("on 2026-03-12 we meet"),
+            "on [Mar 12, 2026](date:2026-03-12) we meet"
+        );
+    }
+
+    #[test]
+    fn rewrite_dates_multiple() {
+        assert_eq!(
+            rewrite_dates("2024-01-01 and 2024-12-25"),
+            "[Jan 1, 2024](date:2024-01-01) and [Dec 25, 2024](date:2024-12-25)"
+        );
+    }
+
+    #[test]
+    fn rewrite_dates_skips_already_converted() {
+        let input = "[Mar 12, 2026](date:2026-03-12)";
+        assert_eq!(rewrite_dates(input), input);
+    }
+
+    #[test]
+    fn rewrite_dates_invalid_date() {
+        assert_eq!(rewrite_dates("bad 2024-02-30 date"), "bad 2024-02-30 date");
+    }
+
+    #[test]
+    fn rewrite_dates_adjacent_digits() {
+        assert_eq!(rewrite_dates("12024-03-15"), "12024-03-15");
+    }
+
+    #[test]
+    fn rewrite_combined() {
+        let input = "see [[Meeting Notes]] on 2026-03-12";
+        let result = rewrite_dates(&rewrite_wikilinks(input));
+        assert_eq!(
+            result,
+            "see [Meeting Notes](<wikilink:Meeting Notes>) on [Mar 12, 2026](date:2026-03-12)"
+        );
+    }
+
+    #[test]
+    fn migrate_content_idempotent() {
+        let conn = Connection::open_in_memory().unwrap();
+        apply_schema(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO notes (id, title, content, created_at, updated_at)
+             VALUES ('a', 'T', 'see [[Foo]] on 2026-03-12', 0, 0)",
+            [],
+        )
+        .unwrap();
+        // Reset user_version so migration runs
+        conn.execute_batch("PRAGMA user_version = 0").unwrap();
+        migrate_content_for_live_editor(&conn).unwrap();
+        let content: String = conn
+            .query_row("SELECT content FROM notes WHERE id = 'a'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(
+            content,
+            "see [Foo](<wikilink:Foo>) on [Mar 12, 2026](date:2026-03-12)"
+        );
+
+        // Run again — should be a no-op (already at user_version 1)
+        conn.execute_batch("PRAGMA user_version = 0").unwrap();
+        migrate_content_for_live_editor(&conn).unwrap();
+        let content2: String = conn
+            .query_row("SELECT content FROM notes WHERE id = 'a'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(content, content2);
+    }
+
+    #[test]
+    fn add_wikilink_closing_brackets_fixes_bare() {
+        assert_eq!(
+            add_wikilink_closing_brackets("see [Foo](<wikilink:Foo) here"),
+            "see [Foo](<wikilink:Foo>) here"
+        );
+    }
+
+    #[test]
+    fn add_wikilink_closing_brackets_with_spaces() {
+        assert_eq!(
+            add_wikilink_closing_brackets("[My Note](<wikilink:My Note)"),
+            "[My Note](<wikilink:My Note>)"
+        );
+    }
+
+    #[test]
+    fn add_wikilink_closing_brackets_already_correct() {
+        let input = "[Foo](<wikilink:Foo>) bar";
+        assert_eq!(add_wikilink_closing_brackets(input), input);
+    }
+
+    #[test]
+    fn add_wikilink_closing_brackets_multiple() {
+        assert_eq!(
+            add_wikilink_closing_brackets("[A](<wikilink:A) and [B](<wikilink:B)"),
+            "[A](<wikilink:A>) and [B](<wikilink:B>)"
+        );
+    }
+
+    #[test]
+    fn fix_wikilink_angle_brackets_migration() {
+        let conn = Connection::open_in_memory().unwrap();
+        apply_schema(&conn).unwrap();
+        // Insert content with bare wikilinks (no angle brackets)
+        conn.execute(
+            "INSERT INTO notes (id, title, content, created_at, updated_at)
+             VALUES ('b', 'T', 'see [Foo](wikilink:Foo) and [Bar Baz](wikilink:Bar Baz)', 0, 0)",
+            [],
+        )
+        .unwrap();
+        // Set version to 1 so only the angle-bracket fix runs
+        conn.execute_batch("PRAGMA user_version = 1").unwrap();
+        fix_wikilink_angle_brackets(&conn).unwrap();
+        let content: String = conn
+            .query_row("SELECT content FROM notes WHERE id = 'b'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(
+            content,
+            "see [Foo](<wikilink:Foo>) and [Bar Baz](<wikilink:Bar Baz>)"
+        );
+    }
+
+    #[test]
+    fn unescape_wikilinks_basic() {
+        assert_eq!(
+            unescape_wikilinks(
+                r"See \[Consulta Tricologista]\(wikilink:Consulta Tricologista) here"
+            ),
+            "See [Consulta Tricologista](<wikilink:Consulta Tricologista>) here"
+        );
+    }
+
+    #[test]
+    fn unescape_wikilinks_already_correct() {
+        let input = "See [Foo](<wikilink:Foo>) here";
+        assert_eq!(unescape_wikilinks(input), input);
+    }
+
+    #[test]
+    fn unescape_wikilinks_multiple() {
+        assert_eq!(
+            unescape_wikilinks(r"\[A]\(wikilink:A) and \[B]\(wikilink:B)"),
+            "[A](<wikilink:A>) and [B](<wikilink:B>)"
+        );
+    }
+
+    #[test]
+    fn fix_escaped_wikilinks_migration() {
+        let conn = Connection::open_in_memory().unwrap();
+        apply_schema(&conn).unwrap();
+        conn.execute(
+            r"INSERT INTO notes (id, title, content, created_at, updated_at)
+             VALUES ('c', 'T', 'see \[My Note]\(wikilink:My Note) here', 0, 0)",
+            [],
+        )
+        .unwrap();
+        conn.execute_batch("PRAGMA user_version = 2").unwrap();
+        fix_escaped_wikilinks(&conn).unwrap();
+        let content: String = conn
+            .query_row("SELECT content FROM notes WHERE id = 'c'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(content, "see [My Note](<wikilink:My Note>) here");
+    }
 }

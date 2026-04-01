@@ -134,6 +134,15 @@
   --c-link:       #c48a3f;
   --c-link-hover: #e0a855;
   --c-scrollbar:  #2e2015;
+
+  --c-syn-keyword:  #e0804a;
+  --c-syn-string:   #c8a060;
+  --c-syn-comment:  #5a4a38;
+  --c-syn-number:   #d4973f;
+  --c-syn-function: #e0a855;
+  --c-syn-type:     #d4874a;
+  --c-syn-tag:      #a0885a;
+  --c-syn-attr:     #c8a060;
 }
 
 :root.theme-ink.light {
@@ -169,6 +178,15 @@
   --c-link:       #a06820;
   --c-link-hover: #7a4e18;
   --c-scrollbar:  #ddd2c0;
+
+  --c-syn-keyword:  #9b3a0a;
+  --c-syn-string:   #5a6e28;
+  --c-syn-comment:  #a89080;
+  --c-syn-number:   #7a4e18;
+  --c-syn-function: #6b4e8a;
+  --c-syn-type:     #9b3a0a;
+  --c-syn-tag:      #2a6e3a;
+  --c-syn-attr:     #5a6e28;
 }
 
 /* ── Nord (arctic) ────────────────────────────────────────────────────────── */
@@ -206,6 +224,15 @@
   --c-link:       #88c0d0;
   --c-link-hover: #8fbcbb;
   --c-scrollbar:  #3b4252;
+
+  --c-syn-keyword:  #81a1c1;
+  --c-syn-string:   #a3be8c;
+  --c-syn-comment:  #616e88;
+  --c-syn-number:   #b48ead;
+  --c-syn-function: #88c0d0;
+  --c-syn-type:     #ebcb8b;
+  --c-syn-tag:      #81a1c1;
+  --c-syn-attr:     #8fbcbb;
 }
 
 :root.theme-nord.light {
@@ -241,6 +268,15 @@
   --c-link:       #5e81ac;
   --c-link-hover: #81a1c1;
   --c-scrollbar:  #c8cfda;
+
+  --c-syn-keyword:  #5e81ac;
+  --c-syn-string:   #4c7a5a;
+  --c-syn-comment:  #7a8598;
+  --c-syn-number:   #8850ac;
+  --c-syn-function: #5e81ac;
+  --c-syn-type:     #9a6520;
+  --c-syn-tag:      #5e81ac;
+  --c-syn-attr:     #4c8070;
 }
 
 /* ── Dusk (rosé pine) ─────────────────────────────────────────────────────── */
@@ -278,6 +314,15 @@
   --c-link:       #c4a7e7;
   --c-link-hover: #dfc0fd;
   --c-scrollbar:  #3a3850;
+
+  --c-syn-keyword:  #eb6f92;
+  --c-syn-string:   #f6c177;
+  --c-syn-comment:  #524f67;
+  --c-syn-number:   #ebbcba;
+  --c-syn-function: #c4a7e7;
+  --c-syn-type:     #9ccfd8;
+  --c-syn-tag:      #eb6f92;
+  --c-syn-attr:     #f6c177;
 }
 
 :root.theme-dusk.light {
@@ -313,6 +358,15 @@
   --c-link:       #907aa9;
   --c-link-hover: #7a5c9a;
   --c-scrollbar:  #d4c8bc;
+
+  --c-syn-keyword:  #b4637a;
+  --c-syn-string:   #ea9d34;
+  --c-syn-comment:  #9893a5;
+  --c-syn-number:   #d7827e;
+  --c-syn-function: #907aa9;
+  --c-syn-type:     #56949f;
+  --c-syn-tag:      #b4637a;
+  --c-syn-attr:     #ea9d34;
 }
 
 /* ── Forest (green) ───────────────────────────────────────────────────────── */
@@ -350,6 +404,15 @@
   --c-link:       #4ade80;
   --c-link-hover: #86efac;
   --c-scrollbar:  #283529;
+
+  --c-syn-keyword:  #f87171;
+  --c-syn-string:   #86efac;
+  --c-syn-comment:  #486650;
+  --c-syn-number:   #fbbf24;
+  --c-syn-function: #34d399;
+  --c-syn-type:     #fbbf24;
+  --c-syn-tag:      #4ade80;
+  --c-syn-attr:     #86efac;
 }
 
 :root.theme-forest.light {
@@ -385,6 +448,15 @@
   --c-link:       #16a34a;
   --c-link-hover: #15803d;
   --c-scrollbar:  #c0d8c4;
+
+  --c-syn-keyword:  #dc2626;
+  --c-syn-string:   #15803d;
+  --c-syn-comment:  #7aaa82;
+  --c-syn-number:   #b45309;
+  --c-syn-function: #7c3aed;
+  --c-syn-type:     #b45309;
+  --c-syn-tag:      #16a34a;
+  --c-syn-attr:     #15803d;
 }
 
 /* ── Tailwind utilities ───────────────────────────────────────────────────── */
@@ -453,137 +525,6 @@
   }
 }
 
-/* ── Markdown ─────────────────────────────────────────────────────────────── */
-
-/* Body: Source Serif 4 — serif for calm long-form reading */
-.markdown-content {
-  font-family: "Source Serif 4 Variable", Georgia, "Times New Roman", serif;
-  font-size: 1rem; /* 16px */
-  font-optical-sizing: auto;
-  line-height: 1.6;
-  color: var(--c-text-md);
-  overflow-wrap: break-word;
-}
-
-/* Headings: Nunito — soft, rounded, calm hierarchy */
-.markdown-content h1,
-.markdown-content h2,
-.markdown-content h3,
-.markdown-content h4 {
-  font-family: "Nunito Variable", system-ui, sans-serif;
-  font-weight: 700;
-  color: var(--c-text-hi);
-  line-height: 1.25;
-  margin-top: 1.75em;
-  margin-bottom: 0.5em;
-}
-
-/* Scale: 28 / 24 / 20 / 16px */
-.markdown-content h1 { font-size: 1.75rem; }
-.markdown-content h2 { font-size: 1.5rem; }
-.markdown-content h3 { font-size: 1.25rem; }
-.markdown-content h4 { font-size: 1rem; font-weight: 600; color: var(--c-text-lo); text-transform: uppercase; letter-spacing: 0.06em; }
-
-/* Generous paragraph spacing for reading comfort */
-.markdown-content p { margin: 0.85em 0; }
-
-.markdown-content strong { color: var(--c-text-hi); font-weight: 600; }
-.markdown-content em { font-style: italic; }
-
-/* Inline code: monospace */
-.markdown-content code {
-  background: var(--c-bg-lift);
-  border: 1px solid var(--c-bc-strong);
-  border-radius: 4px;
-  padding: 0.15em 0.4em;
-  font-size: 0.82em;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  color: var(--c-code);
-}
-
-/* Code blocks: monospace, slightly tighter leading */
-.markdown-content pre {
-  background: var(--c-bg-field);
-  border: 1px solid var(--c-bc-ui);
-  border-radius: 8px;
-  padding: 1.1em 1.2em;
-  overflow-x: auto;
-  margin: 1.1em 0;
-  line-height: 1.55;
-}
-
-.markdown-content pre code {
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: 0.875rem; /* 14px — secondary text scale */
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  color: var(--c-text-md);
-}
-
-/* Blockquote: accent border + tinted background + italic serif */
-.markdown-content blockquote {
-  border-left: 3px solid var(--c-bc-focus);
-  background: color-mix(in srgb, var(--c-bg-lift) 60%, transparent);
-  padding: 0.55em 1em;
-  margin: 1em 0;
-  margin-left: 0;
-  border-radius: 0 6px 6px 0;
-  color: var(--c-text-lo);
-  font-style: italic;
-}
-
-.markdown-content blockquote p { margin: 0; }
-
-.markdown-content ul,
-.markdown-content ol { padding-left: 1.6em; margin: 0.6em 0; }
-
-.markdown-content ul { list-style-type: disc; }
-.markdown-content ol { list-style-type: decimal; }
-
-.markdown-content li { margin: 0.35em 0; }
-.markdown-content li > p { margin: 0; }
-
-.markdown-content hr {
-  border: none;
-  border-top: 1px solid var(--c-bc-ui);
-  margin: 1.75em 0;
-}
-
-/* Tables: system font for data, smaller scale (14px) */
-.markdown-content table {
-  border-collapse: collapse;
-  width: 100%;
-  margin: 1.1em 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 0.875rem;
-}
-
-.markdown-content th,
-.markdown-content td {
-  border: 1px solid var(--c-bc-ui);
-  padding: 0.5em 0.9em;
-  text-align: left;
-}
-
-.markdown-content th {
-  background: var(--c-bg-lift);
-  color: var(--c-text-hi);
-  font-weight: 600;
-  font-size: 0.75rem; /* 12px — caption scale */
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.markdown-content a {
-  color: var(--c-link);
-  text-decoration: none;
-}
-.markdown-content a:hover {
-  color: var(--c-link-hover);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
 
 .wikilink {
   color: var(--c-link);
@@ -596,12 +537,26 @@
   text-underline-offset: 3px;
 }
 
+.ctrl-held a[href] {
+  cursor: pointer;
+}
+
+
 .milkdown-editor {
   font-family: "Source Serif 4 Variable", Georgia, "Times New Roman", serif;
   font-optical-sizing: auto;
   font-size: 1rem;
   line-height: 1.6;
   min-height: 1.6em;
+  color: var(--c-text-md);
+}
+
+/* Strip any Nord theme container styles */
+.milkdown-editor .milkdown {
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+  border: none;
 }
 
 .milkdown-editor .ProseMirror {
@@ -609,60 +564,391 @@
   white-space: pre-wrap;
 }
 
-.milkdown-editor .ProseMirror > * + * {
-  margin-top: 0.9em;
+.milkdown-editor .ProseMirror .ProseMirror-selectednode {
+  outline: none;
+  color: var(--c-text-md);
 }
 
-/* ── Syntax highlighting ──────────────────────────────────────────────────── */
+.milkdown-editor .ProseMirror > * + * {
+  margin-top: 0.85em;
+}
 
-.hljs { background: transparent; color: var(--c-text-md); }
+.milkdown-editor .ProseMirror > *:first-child { margin-top: 0; }
+.milkdown-editor .ProseMirror > *:last-child  { margin-bottom: 0; }
 
-.hljs-keyword,
-.hljs-operator,
-.hljs-selector-tag,
-.hljs-selector-pseudo { color: var(--c-syn-keyword); font-weight: 500; }
+/* ── Headings ─── */
+.milkdown-editor .ProseMirror h1,
+.milkdown-editor .ProseMirror h2,
+.milkdown-editor .ProseMirror h3,
+.milkdown-editor .ProseMirror h4 {
+  font-family: "Nunito Variable", system-ui, sans-serif;
+  font-weight: 700;
+  color: var(--c-text-hi);
+  line-height: 1.25;
+  margin-top: 1.6em;
+  margin-bottom: 0.4em;
+}
 
-.hljs-string,
-.hljs-template-variable,
-.hljs-addition { color: var(--c-syn-string); }
+.milkdown-editor .ProseMirror h1 { font-size: 1.75rem; }
+.milkdown-editor .ProseMirror h2 { font-size: 1.5rem; }
+.milkdown-editor .ProseMirror h3 { font-size: 1.25rem; }
+.milkdown-editor .ProseMirror h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--c-text-lo);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
 
-.hljs-comment,
-.hljs-quote { color: var(--c-syn-comment); font-style: italic; }
+/* ── Inline marks ─── */
+.milkdown-editor .ProseMirror strong { color: var(--c-text-hi); font-weight: 600; }
+.milkdown-editor .ProseMirror em    { font-style: italic; }
 
-.hljs-number,
-.hljs-literal,
-.hljs-boolean { color: var(--c-syn-number); }
+/* ── Inline code ─── */
+.milkdown-editor .ProseMirror code {
+  background: var(--c-bg-lift);
+  border: 1px solid var(--c-bc-strong);
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  font-size: 0.82em;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  color: var(--c-code);
+}
 
-.hljs-title,
-.hljs-title\.function_,
-.hljs-title\.class_,
-.hljs-name { color: var(--c-syn-function); }
+/* ── Code blocks ─── */
+.milkdown-codeblock {
+  background: var(--c-bg-field);
+  border: 1px solid var(--c-bc-ui);
+  border-radius: 8px;
+  margin: 1em 0;
+  overflow: hidden;
+}
 
-.hljs-symbol { color: var(--c-syn-type); }
+.milkdown-codeblock-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 6px 10px;
+}
 
-.hljs-type,
-.hljs-built_in,
-.hljs-class .hljs-title { color: var(--c-syn-type); }
+.milkdown-codeblock-lang {
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 0.68rem;
+  font-family: "Nunito Variable", system-ui, sans-serif;
+  color: var(--c-text-ghost);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
 
-.hljs-tag { color: var(--c-syn-tag); }
+.milkdown-codeblock-lang:hover {
+  color: var(--c-text-lo);
+  background: var(--c-bg-raised);
+}
 
-.hljs-attr,
-.hljs-attribute,
-.hljs-selector-attr { color: var(--c-syn-attr); }
+.milkdown-codeblock-menu {
+  position: fixed;
+  z-index: 50;
+  background: var(--c-bg-panel);
+  border: 1px solid var(--c-bc-ui);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  padding: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  min-width: 140px;
+}
 
-.hljs-variable,
-.hljs-params { color: var(--c-text-hi); }
+.milkdown-codeblock-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 0.72rem;
+  font-family: "Nunito Variable", system-ui, sans-serif;
+  color: var(--c-text-md);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
 
-.hljs-deletion { color: var(--c-syn-keyword); }
+.milkdown-codeblock-menu-item:hover {
+  background: var(--c-bg-lift);
+  color: var(--c-text-hi);
+}
 
-.hljs-emphasis { font-style: italic; }
-.hljs-strong { font-weight: 600; }
+.milkdown-codeblock-menu-item.active {
+  color: var(--c-text-accent);
+  font-weight: 600;
+}
 
-/* ── Block editor ─────────────────────────────────────────────────────────── */
+.milkdown-codeblock-pre {
+  padding: 1em 1.2em;
+  overflow-x: auto;
+  margin: 0;
+  line-height: 1.55;
+}
 
-.block-editing {
-  box-shadow: -2px 0 0 var(--c-bc-ui);
-  padding-left: 0.5rem;
+.milkdown-codeblock-pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.875rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  color: var(--c-text-md);
+  white-space: pre;
+}
+
+/* ── Syntax highlighting tokens ─── */
+.milkdown-codeblock-pre .token.comment,
+.milkdown-codeblock-pre .token.prolog,
+.milkdown-codeblock-pre .token.doctype,
+.milkdown-codeblock-pre .token.cdata { color: var(--c-syn-comment); font-style: italic; }
+
+.milkdown-codeblock-pre .token.punctuation { color: var(--c-text-lo); }
+
+.milkdown-codeblock-pre .token.keyword,
+.milkdown-codeblock-pre .token.atrule,
+.milkdown-codeblock-pre .token.selector-pseudo { color: var(--c-syn-keyword); font-weight: 500; }
+
+.milkdown-codeblock-pre .token.string,
+.milkdown-codeblock-pre .token.char,
+.milkdown-codeblock-pre .token.attr-value,
+.milkdown-codeblock-pre .token.inserted { color: var(--c-syn-string); }
+
+.milkdown-codeblock-pre .token.number,
+.milkdown-codeblock-pre .token.boolean,
+.milkdown-codeblock-pre .token.constant { color: var(--c-syn-number); }
+
+.milkdown-codeblock-pre .token.function,
+.milkdown-codeblock-pre .token.builtin { color: var(--c-syn-function); }
+
+.milkdown-codeblock-pre .token.class-name,
+.milkdown-codeblock-pre .token.symbol,
+.milkdown-codeblock-pre .token.property { color: var(--c-syn-type); }
+
+.milkdown-codeblock-pre .token.tag { color: var(--c-syn-tag); }
+
+.milkdown-codeblock-pre .token.attr-name,
+.milkdown-codeblock-pre .token.selector { color: var(--c-syn-attr); }
+
+.milkdown-codeblock-pre .token.operator,
+.milkdown-codeblock-pre .token.entity,
+.milkdown-codeblock-pre .token.url { color: var(--c-text-lo); }
+
+.milkdown-codeblock-pre .token.regex,
+.milkdown-codeblock-pre .token.important,
+.milkdown-codeblock-pre .token.variable { color: var(--c-text-hi); }
+
+.milkdown-codeblock-pre .token.deleted { color: var(--c-danger-text); }
+
+/* Fallback for code blocks without custom view */
+.milkdown-editor .ProseMirror pre {
+  background: var(--c-bg-field);
+  border: 1px solid var(--c-bc-ui);
+  border-radius: 8px;
+  padding: 1.1em 1.2em;
+  overflow-x: auto;
+  margin: 1em 0;
+  line-height: 1.55;
+}
+
+.milkdown-editor .ProseMirror pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.875rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  color: var(--c-text-md);
+}
+
+/* ── Blockquote ─── */
+.milkdown-editor .ProseMirror blockquote {
+  border-left: 3px solid var(--c-bc-focus);
+  background: color-mix(in srgb, var(--c-bg-lift) 60%, transparent);
+  padding: 0.55em 1em;
+  margin: 1em 0;
+  border-radius: 0 6px 6px 0;
+  color: var(--c-text-lo);
+  font-style: italic;
+}
+
+.milkdown-editor .ProseMirror blockquote p { margin: 0; }
+
+/* ── Lists ─── */
+.milkdown-editor .ProseMirror ul,
+.milkdown-editor .ProseMirror ol { padding-left: 1.6em; margin: 0.5em 0; }
+
+.milkdown-editor .ProseMirror ul { list-style-type: disc; }
+.milkdown-editor .ProseMirror ol { list-style-type: decimal; }
+
+.milkdown-editor .ProseMirror li          { margin: 0.3em 0; }
+.milkdown-editor .ProseMirror li > p      { margin: 0; }
+
+/* GFM task list */
+.milkdown-editor .ProseMirror input[type="checkbox"] {
+  margin-right: 0.4em;
+  cursor: default;
+  accent-color: var(--c-bc-focus);
+}
+
+/* ── HR ─── */
+.milkdown-editor .ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--c-bc-ui);
+  margin: 1.75em 0;
+}
+
+/* ── Links ─── */
+.milkdown-editor .ProseMirror a {
+  color: var(--c-link);
+  text-decoration: none;
+}
+.milkdown-editor .ProseMirror a:hover {
+  color: var(--c-link-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── Tables (GFM) ─── */
+.milkdown-editor .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.875rem;
+}
+
+.milkdown-editor .ProseMirror th,
+.milkdown-editor .ProseMirror td {
+  border: 1px solid var(--c-bc-ui);
+  padding: 0.5em 0.9em;
+  text-align: left;
+}
+
+.milkdown-editor .ProseMirror th {
+  background: var(--c-bg-lift);
+  color: var(--c-text-hi);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Images ─── */
+.milkdown-image-wrapper {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+}
+
+.milkdown-image-wrapper:hover .milkdown-image-handle,
+.milkdown-image-wrapper:focus-within .milkdown-image-handle {
+  opacity: 1;
+}
+
+.milkdown-image {
+  display: block;
+  max-width: 100%;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.milkdown-image-handle {
+  position: absolute;
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 40px;
+  border-radius: 3px;
+  background: var(--c-text-ghost);
+  cursor: ew-resize;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.milkdown-image-handle:hover {
+  background: var(--c-link);
+}
+
+.milkdown-editor .ProseMirror img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+/* ProseMirror selection */
+.milkdown-editor .ProseMirror ::selection {
+  background: color-mix(in srgb, var(--c-bc-focus) 30%, transparent);
+}
+
+/* ── Milkdown bubble menu (TooltipProvider managed) ──────────────────────── */
+
+.milkdown-bubble-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--c-bg-field);
+  border: 1px solid var(--c-bc-ui);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  padding: 2px 4px;
+}
+
+.milkdown-bubble-menu[data-show="false"] {
+  display: none;
+}
+
+.milkdown-bubble-toolbar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 4px;
+  color: var(--c-text-ghost);
+  transition: color 0.1s, background 0.1s;
+  flex-shrink: 0;
+}
+
+.milkdown-bubble-toolbar button:hover {
+  color: var(--c-text-lo);
+  background: var(--c-bg-raised);
+}
+
+.milkdown-bubble-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.milkdown-bubble-sep {
+  width: 1px;
+  height: 12px;
+  background: var(--c-bc-ui);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* ── Milkdown slash menu (SlashProvider managed) ─────────────────────────── */
+
+.milkdown-slash-menu {
+  position: fixed;
+  z-index: 1000;
+}
+
+.milkdown-slash-menu[data-show="false"] {
+  display: none;
 }
 
 /* ── Scrollbars ───────────────────────────────────────────────────────────── */

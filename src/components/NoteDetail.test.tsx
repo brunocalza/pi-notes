@@ -6,6 +6,10 @@ import NoteDetail from "./NoteDetail";
 import { api } from "../api";
 import { makeNote } from "../test/fixtures";
 
+vi.mock("./MilkdownEditor", () => ({
+  default: ({ content }: { content: string }) => <div data-testid="mock-milkdown">{content}</div>,
+}));
+
 vi.mock("../api", () => ({
   api: {
     getNote: vi.fn(),
@@ -446,29 +450,6 @@ describe("NoteDetail", () => {
       const input = attSpan.querySelector("input");
       expect(input).toBeInTheDocument();
       expect((input as HTMLInputElement).value).toBe("doc.pdf");
-    });
-  });
-
-  it("calls updateNote when BlockEditor content is committed", async () => {
-    vi.mocked(api.getNote).mockResolvedValue(
-      makeNote({ id: ID1, title: "Title", content: "Original content" })
-    );
-
-    render(<NoteDetail {...defaultProps} />);
-
-    await waitFor(() => screen.getByDisplayValue("Title"));
-    // Click on the content to activate BlockEditor
-    await userEvent.click(screen.getByText("Original content"));
-    // There are multiple textareas (title + BlockEditor), get the one with the note content
-    const textboxes = screen.getAllByRole("textbox");
-    const textarea = textboxes.find(
-      (el) => el.tagName === "TEXTAREA" && (el as HTMLTextAreaElement).value === "Original content"
-    )!;
-    fireEvent.change(textarea, { target: { value: "New content" } });
-    fireEvent.blur(textarea);
-
-    await waitFor(() => {
-      expect(api.updateNote).toHaveBeenCalledWith(ID1, "Title", "New content", []);
     });
   });
 

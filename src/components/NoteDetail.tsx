@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { api } from "../api";
 import { Collection, Note, AttachmentMeta } from "../types";
-import BlockEditor from "./BlockEditor";
 import MilkdownEditor from "./MilkdownEditor";
 import { validateTag } from "../tags";
 import { useToast } from "../hooks/useToast";
@@ -56,10 +55,6 @@ export default function NoteDetail({
   const [actionsOpen, setActionsOpen] = useState(false);
   const [collectionSubmenu, setCollectionSubmenu] = useState(false);
   const [collectionId, setCollectionId] = useState<string | null>(null);
-  const [useExperimentalEditor, setUseExperimentalEditor] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("pi-notes-editor") === "milkdown";
-  });
   const tagInputRef = useRef<HTMLInputElement>(null);
   const tagPopoverRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
@@ -637,46 +632,20 @@ export default function NoteDetail({
               className="hidden"
               onChange={handleAttachFile}
             />
-
-            <button
-              onClick={() => {
-                setUseExperimentalEditor((prev) => {
-                  const next = !prev;
-                  localStorage.setItem("pi-notes-editor", next ? "milkdown" : "block");
-                  return next;
-                });
-              }}
-              className="flex items-center gap-1 text-xs text-ghost hover:text-lo transition-colors"
-            >
-              {useExperimentalEditor ? "Use block editor" : "Try live editor"}
-            </button>
           </div>
 
           {/* Editor */}
           <div className="bg-lift rounded-lg px-4 py-3">
-            {useExperimentalEditor ? (
-              <MilkdownEditor
-                content={note.content}
-                onCommit={(newContent) => {
-                  setNote({ ...note, content: newContent });
-                  save(title, newContent, tags);
-                }}
-                onNavigate={onNavigate}
-                onDateSelect={onDateSelect}
-                attachments={attachments}
-              />
-            ) : (
-              <BlockEditor
-                content={note.content}
-                onCommit={(newContent) => {
-                  setNote({ ...note, content: newContent });
-                  save(title, newContent, tags);
-                }}
-                onNavigate={onNavigate}
-                onDateSelect={onDateSelect}
-                attachments={attachments}
-              />
-            )}
+            <MilkdownEditor
+              content={note.content}
+              onCommit={(newContent) => {
+                setNote({ ...note, content: newContent });
+                save(title, newContent, tags);
+              }}
+              onNavigate={onNavigate}
+              onDateSelect={onDateSelect}
+              attachments={attachments}
+            />
           </div>
 
           {backlinks.length > 0 && (

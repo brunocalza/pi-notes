@@ -359,7 +359,7 @@ impl NoteReader for SqliteNoteReader {
             .replace('\\', "\\\\")
             .replace('%', "\\%")
             .replace('_', "\\_");
-        let pattern = format!("%[[{escaped_title}]]%");
+        let pattern = format!("%(<wikilink:{escaped_title}>)%");
         let sql = format!(
             "{SELECT}
              WHERE n.id != ?2 AND n.trashed = 0 AND n.content LIKE ?1 ESCAPE '\\'
@@ -678,7 +678,10 @@ mod tests {
     fn get_backlinks() {
         let (reader, repo) = setup();
         let target = accepted_note("Target Note", "original content");
-        let linker = accepted_note("Linker", "see [[Target Note]] for more");
+        let linker = accepted_note(
+            "Linker",
+            "see [Target Note](<wikilink:Target Note>) for more",
+        );
         repo.save(&target).unwrap();
         repo.save(&linker).unwrap();
         let links = reader.get_backlinks(target.id.clone()).unwrap();
