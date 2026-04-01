@@ -1,14 +1,16 @@
 # PI Notes
 
-A minimal desktop note-taking app built with Tauri v2 + React.
+A minimal local-first note-taking app.
+
+This app is a result of me trying to learn more about coding agents and agentic engineering practices.
 
 ## Features
 
-- Inbox / All Notes / Trash views
-- Tag-based organization with hierarchical tags (`language/rust`)
-- Markdown rendering with WikiLinks (`[[Title]]`), math (KaTeX), and GFM
-- File attachments
-- Dark/light mode and color themes
+- Notes and attachments live in a single SQLite database
+- Live markdown editor
+- Tags, attachments, and note-to-note linking via `[[`
+- Collections for organizing notes into groups
+- `/date` command to link a note to a specific date, with a calendar view showing which days have notes
 
 ## Development
 
@@ -32,8 +34,9 @@ npm run build
 
 Outputs `.deb`, `.rpm`, and `.AppImage` to `src-tauri/target/release/bundle/`.
 
-## Tech Stack
-
-- **Frontend**: React 19, TypeScript, Tailwind CSS v4
-- **Backend**: Rust, SQLite (via rusqlite)
-- **Framework**: Tauri v2
+## Roadmap
+- Internationalization
+- Sync across devices
+- Mobile apps
+- Better filtering and search
+- Auto-update

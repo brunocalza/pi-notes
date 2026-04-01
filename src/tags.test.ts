@@ -189,6 +189,13 @@ describe("validateTag", () => {
     expect(r.errors).toContain("tag cannot start or end with a separator");
   });
 
+  it("reports separator error when segment starts with space without hyphen", () => {
+    // "cat/ rust" → normalized "cat/ rust" → segment " rust" starts with space
+    const r = validateTag("cat/ rust");
+    expect(r.valid).toBe(false);
+    expect(r.errors).toContain("tag cannot start or end with a separator");
+  });
+
   it("deduplicates separator errors when segment violates both - and space rules", () => {
     // A segment like "-hello " starts with '-' AND ends with ' '
     // Both checks trigger but only one error is added

@@ -15,6 +15,16 @@ describe("Create Note", () => {
     await clickButton("New");
     await waitForText("Note actions");
 
+    // Wait for the title textarea to be present and have the default value
+    await browser.waitUntil(
+      () =>
+        browser.execute(() => {
+          const textareas = document.querySelectorAll("textarea");
+          return Array.from(textareas).some((ta) => ta.value === "New note");
+        }),
+      { timeout: 8_000, timeoutMsg: "Title textarea with 'New note' not found" }
+    );
+
     // Clear the title textarea and set a new value
     await browser.execute(() => {
       const textareas = document.querySelectorAll("textarea");

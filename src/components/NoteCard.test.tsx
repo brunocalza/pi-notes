@@ -90,6 +90,14 @@ describe("NoteCard", () => {
     expect(screen.getByText("Test Note")).toBeInTheDocument();
   });
 
+  it("shows 'Yesterday' for a note created yesterday", () => {
+    const d = new Date();
+    d.setTime(d.getTime() - 25 * 60 * 60 * 1000); // 25 hours ago
+    const note = makeNote({ created_at: d.toISOString() });
+    render(<NoteCard note={note} selected={false} onClick={vi.fn()} onTagClick={vi.fn()} />);
+    expect(screen.getByText("Yesterday")).toBeInTheDocument();
+  });
+
   it("shows weekday label for a note created 3 days ago", () => {
     const d = new Date();
     d.setDate(d.getDate() - 3);

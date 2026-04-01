@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { api } from "../api";
 import { Collection, Note, AttachmentMeta } from "../types";
-import BlockEditor from "./BlockEditor";
+import MilkdownEditor from "./MilkdownEditor";
 import { validateTag } from "../tags";
 import { useToast } from "../hooks/useToast";
 
@@ -634,9 +634,9 @@ export default function NoteDetail({
             />
           </div>
 
-          {/* Block editor */}
+          {/* Editor */}
           <div className="bg-lift rounded-lg px-4 py-3">
-            <BlockEditor
+            <MilkdownEditor
               content={note.content}
               onCommit={(newContent) => {
                 setNote({ ...note, content: newContent });

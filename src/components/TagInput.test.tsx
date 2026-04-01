@@ -160,7 +160,7 @@ describe("TagInput", () => {
     render(<TagInput tags={[]} onAdd={onAdd} onRemove={onRemove} />);
     await userEvent.type(screen.getByPlaceholderText("Add tag..."), "@invalid{Enter}");
     await waitFor(() => {
-      expect(document.querySelector(".text-red-400")).toBeInTheDocument();
+      expect(document.querySelector(".text-danger")).toBeInTheDocument();
     });
     expect(onAdd).not.toHaveBeenCalled();
   });

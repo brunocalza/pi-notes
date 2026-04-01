@@ -166,8 +166,8 @@ impl NoteRepository for SqliteNoteRepository {
         if old_title.is_empty() || old_title == new_title {
             return Ok(());
         }
-        let old_link = format!("[[{old_title}]]");
-        let new_link = format!("[[{new_title}]]");
+        let old_link = format!("[{old_title}](<wikilink:{old_title}>)");
+        let new_link = format!("[{new_title}](<wikilink:{new_title}>)");
         let conn = self.conn.lock().map_err(map_err)?;
         conn.execute(
             "UPDATE notes SET content = REPLACE(content, ?1, ?2) WHERE instr(content, ?1) > 0",
@@ -306,22 +306,26 @@ mod tests {
     fn rename_wikilinks_updates_content() {
         let (repo, reader) = repo();
         let target = Note::create("Old Title".into(), "target content".into(), vec![]);
-        let linker = Note::create("Linker".into(), "see [[Old Title]] here".into(), vec![]);
+        let linker = Note::create(
+            "Linker".into(),
+            "see [Old Title](<wikilink:Old Title>) here".into(),
+            vec![],
+        );
         repo.save(&target).unwrap();
         repo.save(&linker).unwrap();
         repo.rename_wikilinks("Old Title", "New Title").unwrap();
         let found = reader.get_note(linker.id.clone()).unwrap().unwrap();
-        assert_eq!(found.content, "see [[New Title]] here");
+        assert_eq!(found.content, "see [New Title](<wikilink:New Title>) here");
     }
 
     #[test]
     fn rename_wikilinks_noop_when_titles_equal() {
         let (repo, reader) = repo();
-        let n = Note::create("N".into(), "see [[Foo]] here".into(), vec![]);
+        let n = Note::create("N".into(), "see [Foo](<wikilink:Foo>) here".into(), vec![]);
         repo.save(&n).unwrap();
         repo.rename_wikilinks("Foo", "Foo").unwrap();
         let found = reader.get_note(n.id.clone()).unwrap().unwrap();
-        assert_eq!(found.content, "see [[Foo]] here");
+        assert_eq!(found.content, "see [Foo](<wikilink:Foo>) here");
     }
 
     #[test]

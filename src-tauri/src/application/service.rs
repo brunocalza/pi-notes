@@ -364,7 +364,12 @@ mod tests {
     fn update_note_renames_wikilinks_in_other_notes() {
         let svc = make_service();
         let target_id = create(&svc, "Old Title", "c", vec![]);
-        let linker_id = create(&svc, "Linker", "see [[Old Title]] here", vec![]);
+        let linker_id = create(
+            &svc,
+            "Linker",
+            "see [Old Title](<wikilink:Old Title>) here",
+            vec![],
+        );
         svc.update_note(UpdateNote {
             id: target_id.clone(),
             title: "New Title".into(),
@@ -373,8 +378,8 @@ mod tests {
         })
         .unwrap();
         let linker = svc.get_note(linker_id).unwrap().unwrap();
-        assert!(linker.content.contains("[[New Title]]"));
-        assert!(!linker.content.contains("[[Old Title]]"));
+        assert!(linker.content.contains("[New Title](<wikilink:New Title>)"));
+        assert!(!linker.content.contains("wikilink:Old Title"));
     }
 
     #[test]
@@ -564,7 +569,7 @@ mod tests {
         let svc = make_service();
         let target_id = create(&svc, "Target", "c", vec![]);
         svc.accept_note(target_id.clone()).unwrap();
-        let linker_id = create(&svc, "Linker", "see [[Target]]", vec![]);
+        let linker_id = create(&svc, "Linker", "see [Target](<wikilink:Target>)", vec![]);
         svc.accept_note(linker_id.clone()).unwrap();
         let links = svc.get_backlinks(target_id).unwrap();
         assert!(links.iter().any(|n| n.id == linker_id));

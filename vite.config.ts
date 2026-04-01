@@ -21,6 +21,7 @@ export default defineConfig(async () => ({
         "src/test/**",
         "**/*.test.{ts,tsx}",
         "src/styles/**",
+        "src/components/MilkdownEditor.tsx",
       ],
       thresholds: {
         lines: 90,

@@ -116,7 +116,7 @@ export default function TagInput({ tags, onAdd, onRemove }: Props) {
           {tags.map((tag) => (
             <span
               key={tag}
-              className="flex items-center gap-1 text-xs bg-lift border bc-ui text-lo rounded px-2 py-0.5"
+              className="flex items-center gap-1 text-xs bg-lift border bc-ui text-lo rounded-full px-2 py-0.5"
             >
               #{tag}
               <button onClick={() => onRemove(tag)} className="text-ghost hover:text-lo ml-0.5">
@@ -137,12 +137,12 @@ export default function TagInput({ tags, onAdd, onRemove }: Props) {
           onKeyDown={handleKeyDown}
           onFocus={() => input.trim() && setOpen(true)}
           placeholder="Add tag..."
-          className={`w-full bg-field border rounded px-3 py-1.5 text-xs text-md placeholder-[#444] outline-none transition-colors ${
-            error ? "border-red-500/50" : "bc-ui focus:bc-focus"
+          className={`w-full bg-field border rounded px-3 py-1.5 text-xs text-md placeholder-[var(--c-text-ghost)] outline-none transition-colors ${
+            error ? "bc-danger" : "bc-ui focus:bc-focus"
           }`}
         />
 
-        {error && <p className="text-red-400 text-[10px] mt-1">{error}</p>}
+        {error && <p className="text-danger text-[10px] mt-1">{error}</p>}
 
         {/* Popover */}
         {open && totalItems > 0 && (

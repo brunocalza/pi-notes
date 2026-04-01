@@ -333,10 +333,10 @@ export default function Sidebar({
                       }
                     }}
                     onBlur={() => handleRenameCollectionSubmit(col.id)}
-                    className={`w-full bg-lift border rounded px-1.5 py-0.5 text-xs text-hi outline-none ${renameCollectionError ? "border-red-500" : "bc-focus"}`}
+                    className={`w-full bg-lift border rounded px-1.5 py-0.5 text-xs text-hi outline-none ${renameCollectionError ? "bc-danger" : "bc-focus"}`}
                   />
                   {renameCollectionError && (
-                    <p className="text-[10px] text-red-400 mt-0.5">{renameCollectionError}</p>
+                    <p className="text-[10px] text-danger mt-0.5">{renameCollectionError}</p>
                   )}
                 </div>
               ) : (
@@ -395,10 +395,10 @@ export default function Sidebar({
                 }}
                 onBlur={handleCreateCollectionSubmit}
                 placeholder="Collection name..."
-                className={`w-full bg-lift border rounded px-1.5 py-0.5 text-xs text-hi outline-none placeholder-[#555] ${createCollectionError ? "border-red-500" : "bc-focus"}`}
+                className={`w-full bg-lift border rounded px-1.5 py-0.5 text-xs text-hi outline-none placeholder-[var(--c-text-ghost)] ${createCollectionError ? "bc-danger" : "bc-focus"}`}
               />
               {createCollectionError && (
-                <p className="text-[10px] text-red-400 mt-0.5">{createCollectionError}</p>
+                <p className="text-[10px] text-danger mt-0.5">{createCollectionError}</p>
               )}
             </div>
           )}
@@ -575,7 +575,7 @@ export default function Sidebar({
               value={tagSearch}
               onChange={(e) => setTagSearch(e.target.value)}
               placeholder="Filter tags..."
-              className="w-full bg-field border bc-ui rounded text-xs pl-6 pr-2 py-1 text-lo placeholder-[#444] outline-none focus:bc-focus"
+              className="w-full bg-field border bc-ui rounded text-xs pl-6 pr-2 py-1 text-lo placeholder-[var(--c-text-ghost)] outline-none focus:bc-focus"
             />
           </div>
         )}

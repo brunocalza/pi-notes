@@ -6,6 +6,37 @@ import App from "./App";
 import { api } from "./api";
 import { makeNote } from "./test/fixtures";
 
+vi.mock("./components/MilkdownEditor", () => ({
+  default: ({ content, onNavigate }: { content: string; onNavigate: (id: string) => void }) => {
+    // Parse wikilinks from content and render as clickable spans
+    const parts = content.split(/\[([^\]]+)\]\(<wikilink:[^>]+>\)/g);
+    const wikilinks = [...content.matchAll(/\[([^\]]+)\]\(<wikilink:[^>]+>\)/g)];
+    return (
+      <div data-testid="mock-milkdown">
+        {parts.map((part, i) => {
+          const wl = wikilinks.find((m) => m[1] === part);
+          if (wl) {
+            return (
+              <span
+                key={i}
+                className="wikilink"
+                onClick={() => {
+                  void import("./api").then(({ api }) =>
+                    api.getNoteByTitle(part).then((n) => n && onNavigate(n.id))
+                  );
+                }}
+              >
+                {part}
+              </span>
+            );
+          }
+          return <span key={i}>{part}</span>;
+        })}
+      </div>
+    );
+  },
+}));
+
 vi.mock("./api", () => ({
   api: {
     getAllTags: vi.fn().mockResolvedValue([]),
@@ -485,7 +516,7 @@ describe("App", () => {
     const sourceNote = makeNote({
       id: sourceId,
       title: "Nav Source",
-      content: "[[Nav Target]]",
+      content: "[Nav Target](<wikilink:Nav Target>)",
       in_inbox: false,
     });
     const targetNote = makeNote({
@@ -519,7 +550,7 @@ describe("App", () => {
     const sourceNote = makeNote({
       id: sourceId,
       title: "Trash Source",
-      content: "[[Trash Target]]",
+      content: "[Trash Target](<wikilink:Trash Target>)",
       in_inbox: false,
     });
     const targetNote = makeNote({ id: targetId, title: "Trash Target", trashed: true });
@@ -548,7 +579,7 @@ describe("App", () => {
     const sourceNote = makeNote({
       id: sourceId,
       title: "All Source",
-      content: "[[All Target]]",
+      content: "[All Target](<wikilink:All Target>)",
       in_inbox: false,
     });
     const targetNote = makeNote({
