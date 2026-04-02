@@ -77,6 +77,10 @@ export default function App() {
     }
   }, [loadSidebar, toastError, view]);
 
+  const [feedNotePatch, setFeedNotePatch] = useState<{ id: string; patch: Partial<Note> } | null>(
+    null
+  );
+
   // Stale-closure-safe refs for global shortcuts — notes updated via onNotesChange
   const stateRef = useRef({ selectedNoteId, notes: [] as Note[], view });
   useEffect(() => {
@@ -225,6 +229,7 @@ export default function App() {
         onNotesChange={(notes) => {
           stateRef.current.notes = notes;
         }}
+        notePatch={feedNotePatch}
       />
 
       {selectedNoteId != null ? (
@@ -254,6 +259,7 @@ export default function App() {
             setSelectedNoteId(null);
           }}
           onRefresh={refresh}
+          onUpdateFeedNote={(id, patch) => setFeedNotePatch({ id, patch })}
         />
       ) : (
         <div className="flex-1 flex items-center justify-center text-ghost text-sm select-none">

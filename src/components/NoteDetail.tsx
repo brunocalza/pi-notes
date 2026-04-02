@@ -26,6 +26,7 @@ interface Props {
   onDateSelect?: (date: string) => void;
   onDeselect: () => void;
   onRefresh: () => void;
+  onUpdateFeedNote?: (id: string, patch: Partial<Note>) => void;
 }
 
 export default function NoteDetail({
@@ -37,6 +38,7 @@ export default function NoteDetail({
   onDateSelect,
   onDeselect,
   onRefresh,
+  onUpdateFeedNote,
 }: Props) {
   const { error: toastError } = useToast();
   const [note, setNote] = useState<Note | null>(null);
@@ -150,14 +152,18 @@ export default function NoteDetail({
     }
   };
 
-  const save = async (newTitle: string, newContent: string, newTags: string[]) => {
+  const save = (newTitle: string, newContent: string, newTags: string[], refresh = false) => {
     if (!note) return;
-    try {
-      await api.updateNote(note.id, newTitle.trim() || note.title, newContent, newTags);
-      onRefresh();
-    } catch (e) {
-      toastError(`Failed to save note: ${String(e)}`);
+    // Patch the feed instantly before the API call
+    if (refresh) {
+      onUpdateFeedNote?.(note.id, { title: newTitle.trim() || note.title, tags: newTags });
     }
+    api
+      .updateNote(note.id, newTitle.trim() || note.title, newContent, newTags)
+      .then(() => {
+        if (refresh) onRefresh();
+      })
+      .catch((e) => toastError(`Failed to save note: ${String(e)}`));
   };
 
   const handleTagInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -177,7 +183,7 @@ export default function NoteDetail({
     if (valid && !tags.includes(normalized)) {
       const newTags = [...tags, normalized];
       setTags(newTags);
-      save(title, note?.content ?? "", newTags);
+      save(title, note?.content ?? "", newTags, true);
     }
     setTagInputOpen(false);
   };
@@ -185,7 +191,7 @@ export default function NoteDetail({
   const removeTag = (tag: string) => {
     const newTags = tags.filter((t) => t !== tag);
     setTags(newTags);
-    save(title, note?.content ?? "", newTags);
+    save(title, note?.content ?? "", newTags, true);
   };
 
   const showCreate =
@@ -318,7 +324,7 @@ export default function NoteDetail({
               onChange={(e) => setTitle(e.target.value)}
               onBlur={() => {
                 if (title.trim() === note.title.trim()) return;
-                save(title, note.content, tags);
+                save(title, note.content, tags, true);
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.preventDefault();
@@ -640,6 +646,7 @@ export default function NoteDetail({
               content={note.content}
               onCommit={(newContent) => {
                 setNote({ ...note, content: newContent });
+                onUpdateFeedNote?.(note.id, { content: newContent });
                 save(title, newContent, tags);
               }}
               onNavigate={onNavigate}
