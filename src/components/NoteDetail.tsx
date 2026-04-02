@@ -58,6 +58,7 @@ export default function NoteDetail({
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
   const [tagActiveIdx, setTagActiveIdx] = useState(0);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [actionsFlipped, setActionsFlipped] = useState(false);
   const [collectionSubmenu, setCollectionSubmenu] = useState(false);
   const [collectionId, setCollectionId] = useState<string | null>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
@@ -212,7 +213,9 @@ export default function NoteDetail({
 
   if (!note) {
     return (
-      <div className="flex-1 flex items-center justify-center text-ghost text-sm">Loading...</div>
+      <div className="flex-1 flex items-center justify-center text-ghost text-sm min-w-[300px]">
+        Loading...
+      </div>
     );
   }
 
@@ -323,7 +326,7 @@ export default function NoteDetail({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full min-w-0">
+    <div className="flex-1 flex flex-col h-full min-w-[300px] animate-fade-in">
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-8 py-6">
         <div className="max-w-2xl mx-auto">
@@ -347,16 +350,25 @@ export default function NoteDetail({
             <div className="relative shrink-0">
               <button
                 ref={actionsButtonRef}
-                onClick={() => setActionsOpen((o) => !o)}
+                onClick={() => {
+                  if (!actionsOpen && actionsButtonRef.current) {
+                    const rect = actionsButtonRef.current.getBoundingClientRect();
+                    setActionsFlipped(rect.bottom + 280 > window.innerHeight);
+                  }
+                  setActionsOpen((o) => !o);
+                }}
                 className="p-1 rounded text-ghost hover:text-lo hover:bg-lift transition-colors"
-                title="Note actions"
+                aria-label="Note actions"
+                aria-expanded={actionsOpen}
+                aria-haspopup="menu"
               >
                 <MoreHorizontal size={16} />
               </button>
               {actionsOpen && (
                 <div
                   ref={actionsPopoverRef}
-                  className="absolute right-0 top-full mt-1 bg-field border bc-ui rounded-md shadow-xl z-50 overflow-hidden min-w-44"
+                  role="menu"
+                  className={`absolute right-0 ${actionsFlipped ? "bottom-full mb-1" : "top-full mt-1"} bg-field border bc-ui rounded-md shadow-xl z-50 overflow-hidden min-w-44 animate-popover`}
                 >
                   {note.in_inbox && (
                     <button
@@ -526,7 +538,8 @@ export default function NoteDetail({
                   {totalItems > 0 && (
                     <div
                       ref={tagPopoverRef}
-                      className="absolute left-0 top-full mt-1 bg-field border bc-ui rounded-md shadow-xl z-50 overflow-hidden min-w-36"
+                      role="listbox"
+                      className="absolute left-0 top-full mt-1 bg-field border bc-ui rounded-md shadow-xl z-50 overflow-hidden min-w-36 animate-popover"
                     >
                       {tagSuggestions.map((t, i) => (
                         <button
@@ -568,7 +581,7 @@ export default function NoteDetail({
                 <button
                   onClick={() => setTagInputOpen(true)}
                   className="flex items-center justify-center w-5 h-5 rounded text-ghost hover:text-lo hover:bg-field transition-colors"
-                  title="Add tag"
+                  aria-label="Add tag"
                 >
                   <Plus size={12} />
                 </button>
@@ -639,6 +652,7 @@ export default function NoteDetail({
             <button
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-1 text-xs text-ghost hover:text-lo transition-colors"
+              aria-label="Attach file"
             >
               <Paperclip size={11} />
               {attachments.length === 0 && <span>Attach</span>}

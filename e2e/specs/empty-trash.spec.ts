@@ -36,7 +36,7 @@ describe("Empty Trash", () => {
       }
     });
 
-    await waitForText("No notes here");
+    await waitForText("Trash is empty");
     await assertAbsent("Empty Trash");
   });
 });

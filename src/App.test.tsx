@@ -77,7 +77,7 @@ describe("App", () => {
   it("renders without crashing and shows empty note placeholder", async () => {
     render(<App />);
     await waitFor(() => {
-      expect(screen.getByText("Select a note to read it")).toBeInTheDocument();
+      expect(screen.getByText("Select a note to view it")).toBeInTheDocument();
     });
   });
 
@@ -101,7 +101,7 @@ describe("App", () => {
 
   it("creates a new note with Ctrl+N shortcut", async () => {
     render(<App />);
-    await waitFor(() => screen.getByText("Select a note to read it"));
+    await waitFor(() => screen.getByText("Select a note to view it"));
     await userEvent.keyboard("{Control>}n{/Control}");
     await waitFor(() => {
       expect(api.insertNote).toHaveBeenCalled();
@@ -137,7 +137,7 @@ describe("App", () => {
 
   it("Ctrl+F sets view to all and increments searchFocusTrigger", async () => {
     render(<App />);
-    await waitFor(() => screen.getByText("Select a note to read it"));
+    await waitFor(() => screen.getByText("Select a note to view it"));
     fireEvent.keyDown(document, { key: "f", ctrlKey: true });
     await waitFor(() => {
       expect(api.listNotesCursor).toHaveBeenCalled();
@@ -146,15 +146,15 @@ describe("App", () => {
 
   it("Escape key deselects note when not in input", async () => {
     render(<App />);
-    await waitFor(() => screen.getByText("Select a note to read it"));
+    await waitFor(() => screen.getByText("Select a note to view it"));
     // Fire Escape with no selected note — should not throw
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(screen.getByText("Select a note to read it")).toBeInTheDocument();
+    expect(screen.getByText("Select a note to view it")).toBeInTheDocument();
   });
 
   it("toggles theme when theme toggle button is clicked", async () => {
     render(<App />);
-    await waitFor(() => screen.getByText("Select a note to read it"));
+    await waitFor(() => screen.getByText("Select a note to view it"));
     // The theme toggle is in Sidebar — find button with Sun or Moon icon
     const themeBtn = document.querySelector('button[title*="theme"], button[aria-label*="theme"]');
     if (themeBtn) {
@@ -178,22 +178,22 @@ describe("App", () => {
 
   it("ArrowDown navigates notes when notes exist", async () => {
     render(<App />);
-    await waitFor(() => screen.getByText("Select a note to read it"));
+    await waitFor(() => screen.getByText("Select a note to view it"));
     // Fire arrow down when no notes — should not crash
     fireEvent.keyDown(document, { key: "ArrowDown" });
-    expect(screen.getByText("Select a note to read it")).toBeInTheDocument();
+    expect(screen.getByText("Select a note to view it")).toBeInTheDocument();
   });
 
   it("ArrowUp navigates notes when no notes exist", async () => {
     render(<App />);
-    await waitFor(() => screen.getByText("Select a note to read it"));
+    await waitFor(() => screen.getByText("Select a note to view it"));
     fireEvent.keyDown(document, { key: "ArrowUp" });
-    expect(screen.getByText("Select a note to read it")).toBeInTheDocument();
+    expect(screen.getByText("Select a note to view it")).toBeInTheDocument();
   });
 
   it("Ctrl+Backspace does nothing when no note is selected", async () => {
     render(<App />);
-    await waitFor(() => screen.getByText("Select a note to read it"));
+    await waitFor(() => screen.getByText("Select a note to view it"));
     fireEvent.keyDown(document, { key: "Backspace", ctrlKey: true });
     expect(api.trashNote).not.toHaveBeenCalled();
   });
@@ -201,8 +201,8 @@ describe("App", () => {
   it("creates a collection via Sidebar onCreateCollection", async () => {
     vi.mocked(api.createCollection).mockResolvedValue("col-new");
     render(<App />);
-    await waitFor(() => screen.getByTitle("New collection"));
-    await userEvent.click(screen.getByTitle("New collection"));
+    await waitFor(() => screen.getByLabelText("New collection"));
+    await userEvent.click(screen.getByLabelText("New collection"));
     await userEvent.type(screen.getByPlaceholderText("Collection name..."), "Research{Enter}");
     await waitFor(() => {
       expect(api.createCollection).toHaveBeenCalledWith("Research");
@@ -217,7 +217,7 @@ describe("App", () => {
     render(<App />);
     await waitFor(() => screen.getByText("Work"));
     await userEvent.hover(screen.getByText("Work"));
-    await userEvent.click(screen.getByTitle("Rename collection"));
+    await userEvent.click(screen.getByLabelText("Rename collection Work"));
     const input = screen.getByDisplayValue("Work");
     await userEvent.clear(input);
     await userEvent.type(input, "Projects{Enter}");
@@ -234,7 +234,7 @@ describe("App", () => {
     render(<App />);
     await waitFor(() => screen.getByText("Work"));
     await userEvent.hover(screen.getByText("Work"));
-    await userEvent.click(screen.getByTitle("Delete collection"));
+    await userEvent.click(screen.getByLabelText("Delete collection Work"));
     await waitFor(() => {
       expect(api.deleteCollection).toHaveBeenCalledWith("col-1");
     });
@@ -333,7 +333,7 @@ describe("App", () => {
     });
     // Now delete the collection — hover + click delete
     await userEvent.hover(screen.getAllByText("WorkCol")[0]);
-    await userEvent.click(screen.getByTitle("Delete collection"));
+    await userEvent.click(screen.getByLabelText("Delete collection WorkCol"));
     await waitFor(() => {
       expect(api.deleteCollection).toHaveBeenCalledWith("col-1");
       // Should switch back to "all" view
@@ -398,7 +398,7 @@ describe("App", () => {
     // Press Escape to trigger onDeselect (not in input)
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() => {
-      expect(screen.getByText("Select a note to read it")).toBeInTheDocument();
+      expect(screen.getByText("Select a note to view it")).toBeInTheDocument();
     });
   });
 
@@ -442,7 +442,7 @@ describe("App", () => {
   it("shows toast when handleAddNote fails", async () => {
     vi.mocked(api.insertNote).mockRejectedValue(new Error("insert failed"));
     render(<App />);
-    await waitFor(() => screen.getByText("Select a note to read it"));
+    await waitFor(() => screen.getByText("Select a note to view it"));
     await userEvent.keyboard("{Control>}n{/Control}");
     await waitFor(() => {
       expect(screen.getByText(/Failed to create note/)).toBeInTheDocument();

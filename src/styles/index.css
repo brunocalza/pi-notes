@@ -959,3 +959,43 @@
   background: var(--c-scrollbar);
   border-radius: 3px;
 }
+
+/* ── Focus ring ──────────────────────────────────────────────────────────── */
+
+*:focus-visible {
+  outline: 1.5px solid color-mix(in srgb, var(--c-bc-focus) 35%, transparent);
+  outline-offset: 1px;
+}
+
+/* Inputs/textareas already show focus via border color change — skip the outline */
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+
+/* ── Animations ──────────────────────────────────────────────────────────── */
+
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toast-slide-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(8px); }
+}
+
+@keyframes popover-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-toast-in  { animation: toast-slide-in 150ms ease-out forwards; }
+.animate-toast-out { animation: toast-slide-out 120ms ease-out forwards; }
+.animate-popover   { animation: popover-in 120ms ease-out; }
+.animate-fade-in   { animation: fade-in 100ms ease-out; }

@@ -63,7 +63,7 @@ export async function clickNoteCard(noteId: number) {
 /** Open the note actions popover and wait for it to appear. */
 export async function openActionsPopover() {
   await browser.execute(() => {
-    const btn = document.querySelector("button[title='Note actions']") as HTMLElement | null;
+    const btn = document.querySelector("button[aria-label='Note actions']") as HTMLElement | null;
     if (btn) btn.click();
   });
 }

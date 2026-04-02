@@ -267,7 +267,7 @@ export default function Sidebar({
       </div>
 
       {/* Nav */}
-      <nav className="px-2 flex flex-col gap-0.5 shrink-0">
+      <nav className="px-2 flex flex-col gap-0.5 shrink-0" aria-label="Main navigation">
         <div className={navClass("inbox")} onClick={() => onViewChange("inbox")}>
           <Inbox size={15} />
           <span className="flex-1">Inbox</span>
@@ -303,7 +303,7 @@ export default function Sidebar({
               setTimeout(() => newCollectionInputRef.current?.focus(), 0);
             }}
             className="p-0.5 rounded hover:bg-lift text-ghost hover:text-lo transition-colors"
-            title="New collection"
+            aria-label="New collection"
           >
             <Plus size={12} />
           </button>
@@ -360,14 +360,14 @@ export default function Sidebar({
                           setRenameCollectionValue(col.name);
                         }}
                         className="p-0.5 rounded hover:bg-raised text-ghost hover:text-lo transition-colors"
-                        title="Rename collection"
+                        aria-label={`Rename collection ${col.name}`}
                       >
                         <Pencil size={11} />
                       </button>
                       <button
                         onClick={() => onDeleteCollection(col.id)}
                         className="p-0.5 rounded hover:bg-danger text-ghost hover:text-danger transition-colors"
-                        title="Delete collection"
+                        aria-label={`Delete collection ${col.name}`}
                       >
                         <X size={11} />
                       </button>
@@ -492,7 +492,7 @@ export default function Sidebar({
                   } else setCalMonth((m) => m - 1);
                 }}
                 className="p-0.5 rounded hover:bg-lift text-ghost hover:text-lo transition-colors"
-                title="Previous month"
+                aria-label="Previous month"
               >
                 <ChevronLeft size={12} />
               </button>
@@ -504,7 +504,7 @@ export default function Sidebar({
                   } else setCalMonth((m) => m + 1);
                 }}
                 className="p-0.5 rounded hover:bg-lift text-ghost hover:text-lo transition-colors"
-                title="Next month"
+                aria-label="Next month"
               >
                 <ChevronRight size={12} />
               </button>
@@ -629,14 +629,14 @@ export default function Sidebar({
                           setRenameValue(tag);
                         }}
                         className="p-0.5 rounded hover:bg-raised text-ghost hover:text-lo transition-colors"
-                        title="Rename tag"
+                        aria-label={`Rename tag ${tag}`}
                       >
                         <Pencil size={11} />
                       </button>
                       <button
                         onClick={() => handleDeleteTag(tag)}
                         className="p-0.5 rounded hover:bg-danger text-ghost hover:text-danger transition-colors"
-                        title="Delete tag"
+                        aria-label={`Delete tag ${tag}`}
                       >
                         <X size={11} />
                       </button>
@@ -660,7 +660,11 @@ export default function Sidebar({
       {/* Settings button + popover */}
       <div className="relative border-t bc-subtle px-3 py-2 shrink-0">
         {settingsOpen && (
-          <div className="absolute bottom-full left-0 right-0 bg-panel border bc-ui rounded-t-lg shadow-lg px-4 py-4">
+          <div
+            role="dialog"
+            aria-label="Settings"
+            className="absolute bottom-full left-0 right-0 bg-panel border bc-ui rounded-t-lg shadow-lg px-4 py-4 animate-popover"
+          >
             <p className="text-[10px] font-semibold text-ghost uppercase tracking-wider mb-3">
               Appearance
             </p>
@@ -766,6 +770,8 @@ export default function Sidebar({
         )}
         <button
           onClick={() => setSettingsOpen((o) => !o)}
+          aria-expanded={settingsOpen}
+          aria-haspopup="dialog"
           className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs transition-colors ${
             settingsOpen ? "bg-raised text-md" : "text-lo hover:text-md hover:bg-field"
           }`}

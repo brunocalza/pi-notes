@@ -48,14 +48,14 @@ describe("Feed", () => {
   it("shows empty state when there are no notes", async () => {
     render(<Feed {...defaultProps} />);
     await waitFor(() => {
-      expect(screen.getByText("No notes here")).toBeInTheDocument();
+      expect(screen.getByText("No notes here yet")).toBeInTheDocument();
     });
   });
 
   it("shows 'No results' when search query has no matches", async () => {
     render(<Feed {...defaultProps} searchQuery="xyz" />);
     await waitFor(() => {
-      expect(screen.getByText("No results")).toBeInTheDocument();
+      expect(screen.getByText(/No results for/)).toBeInTheDocument();
     });
   });
 
@@ -280,7 +280,7 @@ describe("Feed", () => {
   it("shows empty state for unrecognised view type (fetchPage returns empty)", async () => {
     render(<Feed {...defaultProps} view={"unknown" as unknown as View} />);
     await waitFor(() => {
-      expect(screen.getByText("No notes here")).toBeInTheDocument();
+      expect(screen.getByText("No notes here yet")).toBeInTheDocument();
     });
   });
 
