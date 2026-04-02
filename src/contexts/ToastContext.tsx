@@ -24,52 +24,31 @@ export function useToastContext(): ToastContextValue {
 let nextId = 0;
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) => void }) {
-  useEffect(() => {
-    const timer = setTimeout(() => onDismiss(toast.id), 4000);
-    return () => clearTimeout(timer);
+  const [exiting, setExiting] = useState(false);
+
+  const dismiss = useCallback(() => {
+    setExiting(true);
+    setTimeout(() => onDismiss(toast.id), 120);
   }, [toast.id, onDismiss]);
 
+  useEffect(() => {
+    const timer = setTimeout(dismiss, 4000);
+    return () => clearTimeout(timer);
+  }, [dismiss]);
+
   const isError = toast.type === "error";
-  const style: React.CSSProperties = isError
-    ? {
-        background: "var(--c-danger-bg)",
-        color: "var(--c-danger-text)",
-        border: "1px solid var(--c-danger-text)",
-      }
-    : {
-        background: "var(--c-bg-lift)",
-        color: "var(--c-text-hi)",
-        border: "1px solid var(--c-bc-ui)",
-      };
 
   return (
     <div
-      onClick={() => onDismiss(toast.id)}
-      style={{
-        ...style,
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 8,
-        padding: "10px 14px",
-        borderRadius: 8,
-        fontSize: 13,
-        lineHeight: "1.4",
-        cursor: "pointer",
-        maxWidth: 360,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-        wordBreak: "break-word",
-      }}
+      role="alert"
+      onClick={dismiss}
+      className={`flex items-start gap-2 px-3.5 py-2.5 rounded-lg text-[13px] leading-[1.4] cursor-pointer max-w-[360px] break-words border ${
+        exiting ? "animate-toast-out" : "animate-toast-in"
+      } ${isError ? "bg-danger text-danger bc-danger" : "bg-lift text-hi bc-ui"}`}
+      style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.25)" }}
     >
-      <span style={{ flex: 1 }}>{toast.message}</span>
-      <span
-        style={{
-          opacity: 0.7,
-          fontSize: 16,
-          lineHeight: 1,
-          flexShrink: 0,
-          marginTop: 1,
-        }}
-      >
+      <span className="flex-1">{toast.message}</span>
+      <span className="opacity-70 text-base leading-none shrink-0 mt-px" aria-hidden="true">
         ×
       </span>
     </div>
@@ -86,17 +65,7 @@ function ToastContainer({
   if (toasts.length === 0) return null;
 
   return ReactDOM.createPortal(
-    <div
-      style={{
-        position: "fixed",
-        bottom: 24,
-        right: 24,
-        zIndex: 9999,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-      }}
-    >
+    <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2">
       {toasts.map((t) => (
         <ToastItem key={t.id} toast={t} onDismiss={onDismiss} />
       ))}

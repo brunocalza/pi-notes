@@ -75,6 +75,7 @@ export default function DatePicker({ onSelect, onClose }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <button
+          aria-label="Previous month"
           onMouseDown={(e) => {
             e.preventDefault();
             prevMonth();
@@ -87,6 +88,7 @@ export default function DatePicker({ onSelect, onClose }: Props) {
           {MONTHS[viewMonth]} {viewYear}
         </span>
         <button
+          aria-label="Next month"
           onMouseDown={(e) => {
             e.preventDefault();
             nextMonth();

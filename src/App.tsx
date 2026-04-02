@@ -178,7 +178,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-app">
+    <div className="flex h-screen w-full bg-app min-w-[900px]">
       <Sidebar
         view={view}
         tags={tags}
@@ -265,8 +265,28 @@ export default function App() {
           onDateLinked={() => setCalendarRefreshKey((k) => k + 1)}
         />
       ) : (
-        <div className="flex-1 flex items-center justify-center text-ghost text-sm select-none">
-          Select a note to read it
+        <div className="flex-1 flex flex-col items-center justify-center text-ghost select-none min-w-[300px]">
+          <p className="text-sm mb-6">Select a note to view it</p>
+          <div className="flex flex-col gap-2 text-[11px]">
+            <div className="flex items-center gap-3">
+              <kbd className="inline-flex items-center justify-center min-w-[48px] px-1.5 py-0.5 rounded bg-field border bc-ui text-dim font-mono text-[10px]">
+                Ctrl+N
+              </kbd>
+              <span>New note</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <kbd className="inline-flex items-center justify-center min-w-[48px] px-1.5 py-0.5 rounded bg-field border bc-ui text-dim font-mono text-[10px]">
+                Ctrl+F
+              </kbd>
+              <span>Search</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <kbd className="inline-flex items-center justify-center min-w-[48px] px-1.5 py-0.5 rounded bg-field border bc-ui text-dim font-mono text-[10px]">
+                ↑ ↓
+              </kbd>
+              <span>Navigate</span>
+            </div>
+          </div>
         </div>
       )}
     </div>

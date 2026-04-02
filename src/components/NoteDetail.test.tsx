@@ -95,8 +95,8 @@ describe("NoteDetail", () => {
 
     render(<NoteDetail {...defaultProps} onDeselect={onDeselect} onRefresh={onRefresh} />);
 
-    await waitFor(() => screen.getByTitle("Note actions"));
-    await userEvent.click(screen.getByTitle("Note actions"));
+    await waitFor(() => screen.getByLabelText("Note actions"));
+    await userEvent.click(screen.getByLabelText("Note actions"));
     await userEvent.click(screen.getByText("Move to trash"));
 
     await waitFor(() => {
@@ -115,8 +115,8 @@ describe("NoteDetail", () => {
 
     render(<NoteDetail {...defaultProps} onDeselect={onDeselect} onRefresh={onRefresh} />);
 
-    await waitFor(() => screen.getByTitle("Note actions"));
-    await userEvent.click(screen.getByTitle("Note actions"));
+    await waitFor(() => screen.getByLabelText("Note actions"));
+    await userEvent.click(screen.getByLabelText("Note actions"));
     await userEvent.click(screen.getByText("Move to trash"));
 
     await waitFor(() => {
@@ -131,8 +131,8 @@ describe("NoteDetail", () => {
 
     render(<NoteDetail {...defaultProps} />);
 
-    await waitFor(() => screen.getByTitle("Note actions"));
-    await userEvent.click(screen.getByTitle("Note actions"));
+    await waitFor(() => screen.getByLabelText("Note actions"));
+    await userEvent.click(screen.getByLabelText("Note actions"));
 
     expect(screen.getByText("Delete permanently")).toBeInTheDocument();
     expect(screen.queryByText("Move to trash")).not.toBeInTheDocument();
@@ -146,8 +146,8 @@ describe("NoteDetail", () => {
 
     render(<NoteDetail {...defaultProps} onDeselect={onDeselect} onRefresh={onRefresh} />);
 
-    await waitFor(() => screen.getByTitle("Note actions"));
-    await userEvent.click(screen.getByTitle("Note actions"));
+    await waitFor(() => screen.getByLabelText("Note actions"));
+    await userEvent.click(screen.getByLabelText("Note actions"));
     await userEvent.click(screen.getByText("Delete permanently"));
 
     await waitFor(() => {
@@ -163,8 +163,8 @@ describe("NoteDetail", () => {
 
     render(<NoteDetail {...defaultProps} />);
 
-    await waitFor(() => screen.getByTitle("Note actions"));
-    await userEvent.click(screen.getByTitle("Note actions"));
+    await waitFor(() => screen.getByLabelText("Note actions"));
+    await userEvent.click(screen.getByLabelText("Note actions"));
     await userEvent.click(screen.getByText("Delete permanently"));
 
     expect(api.deleteNote).not.toHaveBeenCalled();
@@ -235,8 +235,8 @@ describe("NoteDetail", () => {
       <NoteDetail {...defaultProps} noteId={ID1} collections={collections} onRefresh={onRefresh} />
     );
 
-    await waitFor(() => screen.getByTitle("Note actions"));
-    await userEvent.click(screen.getByTitle("Note actions"));
+    await waitFor(() => screen.getByLabelText("Note actions"));
+    await userEvent.click(screen.getByLabelText("Note actions"));
     await userEvent.click(screen.getByText("Move to collection"));
     await userEvent.click(screen.getByText("Work"));
 
@@ -268,8 +268,8 @@ describe("NoteDetail", () => {
 
     render(<NoteDetail {...defaultProps} onDeselect={onDeselect} onRefresh={onRefresh} />);
 
-    await waitFor(() => screen.getByTitle("Note actions"));
-    await userEvent.click(screen.getByTitle("Note actions"));
+    await waitFor(() => screen.getByLabelText("Note actions"));
+    await userEvent.click(screen.getByLabelText("Note actions"));
     expect(screen.getByText("Accept note")).toBeInTheDocument();
     await userEvent.click(screen.getByText("Accept note"));
 
@@ -287,8 +287,8 @@ describe("NoteDetail", () => {
 
     render(<NoteDetail {...defaultProps} onDeselect={onDeselect} onRefresh={onRefresh} />);
 
-    await waitFor(() => screen.getByTitle("Note actions"));
-    await userEvent.click(screen.getByTitle("Note actions"));
+    await waitFor(() => screen.getByLabelText("Note actions"));
+    await userEvent.click(screen.getByLabelText("Note actions"));
     expect(screen.getByText("Move to inbox")).toBeInTheDocument();
     await userEvent.click(screen.getByText("Move to inbox"));
 
@@ -376,8 +376,8 @@ describe("NoteDetail", () => {
 
     render(<NoteDetail {...defaultProps} />);
 
-    await waitFor(() => screen.getByTitle("Note actions"));
-    await userEvent.click(screen.getByTitle("Note actions"));
+    await waitFor(() => screen.getByLabelText("Note actions"));
+    await userEvent.click(screen.getByLabelText("Note actions"));
 
     const acceptBtn = screen.getByText("Accept note").closest("button")!;
     expect(acceptBtn).toBeDisabled();
@@ -391,8 +391,8 @@ describe("NoteDetail", () => {
 
     render(<NoteDetail {...defaultProps} collections={collections} />);
 
-    await waitFor(() => screen.getByTitle("Note actions"));
-    await userEvent.click(screen.getByTitle("Note actions"));
+    await waitFor(() => screen.getByLabelText("Note actions"));
+    await userEvent.click(screen.getByLabelText("Note actions"));
     await userEvent.click(screen.getByText("Move to collection"));
     expect(screen.getByText("Work")).toBeInTheDocument();
     await userEvent.click(screen.getByText("← Back"));
@@ -534,8 +534,8 @@ describe("NoteDetail", () => {
       <NoteDetail {...defaultProps} noteId={ID1} collections={collections} onRefresh={onRefresh} />
     );
 
-    await waitFor(() => screen.getByTitle("Note actions"));
-    await userEvent.click(screen.getByTitle("Note actions"));
+    await waitFor(() => screen.getByLabelText("Note actions"));
+    await userEvent.click(screen.getByLabelText("Note actions"));
     await userEvent.click(screen.getByText("Move to collection"));
     await userEvent.click(screen.getByText("None"));
 
@@ -585,7 +585,7 @@ describe("NoteDetail", () => {
 
     await waitFor(() => screen.getByText("#existing"));
     // The + button (Add tag) should be visible when tags exist
-    const addTagBtn = screen.getByTitle("Add tag");
+    const addTagBtn = screen.getByLabelText("Add tag");
     expect(addTagBtn).toBeInTheDocument();
     await userEvent.click(addTagBtn);
 
@@ -847,8 +847,8 @@ describe("NoteDetail", () => {
 
     render(<NoteDetail {...defaultProps} />);
 
-    await waitFor(() => screen.getByTitle("Add tag"));
-    await userEvent.click(screen.getByTitle("Add tag"));
+    await waitFor(() => screen.getByLabelText("Add tag"));
+    await userEvent.click(screen.getByLabelText("Add tag"));
 
     const tagInput = screen.getByPlaceholderText("Search or create…");
     // Type the exact tag that's already in the note (so totalItems=0)
@@ -881,8 +881,8 @@ describe("NoteDetail", () => {
 
     render(<NoteDetail {...defaultProps} />);
 
-    await waitFor(() => screen.getByTitle("Note actions"));
-    await userEvent.click(screen.getByTitle("Note actions"));
+    await waitFor(() => screen.getByLabelText("Note actions"));
+    await userEvent.click(screen.getByLabelText("Note actions"));
     await userEvent.click(screen.getByText("Accept note"));
 
     await waitFor(() => {
@@ -898,8 +898,8 @@ describe("NoteDetail", () => {
 
     render(<NoteDetail {...defaultProps} />);
 
-    await waitFor(() => screen.getByTitle("Note actions"));
-    await userEvent.click(screen.getByTitle("Note actions"));
+    await waitFor(() => screen.getByLabelText("Note actions"));
+    await userEvent.click(screen.getByLabelText("Note actions"));
     await userEvent.click(screen.getByText("Move to trash"));
 
     await waitFor(() => {
@@ -995,8 +995,8 @@ describe("NoteDetail", () => {
 
     render(<NoteDetail {...defaultProps} />);
 
-    await waitFor(() => screen.getByTitle("Note actions"));
-    await userEvent.click(screen.getByTitle("Note actions"));
+    await waitFor(() => screen.getByLabelText("Note actions"));
+    await userEvent.click(screen.getByLabelText("Note actions"));
     await userEvent.click(screen.getByText("Delete permanently"));
 
     await waitFor(() => {
@@ -1010,8 +1010,8 @@ describe("NoteDetail", () => {
 
     render(<NoteDetail {...defaultProps} />);
 
-    await waitFor(() => screen.getByTitle("Note actions"));
-    await userEvent.click(screen.getByTitle("Note actions"));
+    await waitFor(() => screen.getByLabelText("Note actions"));
+    await userEvent.click(screen.getByLabelText("Note actions"));
     await userEvent.click(screen.getByText("Move to inbox"));
 
     await waitFor(() => {

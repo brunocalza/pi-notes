@@ -110,7 +110,7 @@ describe("Sidebar", () => {
     render(<Sidebar {...defaultProps} tags={tags} onTagRename={onTagRename} />);
 
     await userEvent.hover(screen.getByText("oldtag"));
-    await userEvent.click(screen.getByTitle("Rename tag"));
+    await userEvent.click(screen.getByLabelText("Rename tag oldtag"));
 
     const input = screen.getByDisplayValue("oldtag");
     await userEvent.clear(input);
@@ -129,7 +129,7 @@ describe("Sidebar", () => {
     render(<Sidebar {...defaultProps} tags={tags} onTagDelete={onTagDelete} />);
 
     await userEvent.hover(screen.getByText("mytag"));
-    await userEvent.click(screen.getByTitle("Delete tag"));
+    await userEvent.click(screen.getByLabelText("Delete tag mytag"));
 
     await waitFor(() => {
       expect(api.deleteTag).toHaveBeenCalledWith("mytag");
@@ -148,7 +148,7 @@ describe("Sidebar", () => {
     render(<Sidebar {...defaultProps} tags={tags} />);
 
     await userEvent.hover(screen.getByText("mytag"));
-    await userEvent.click(screen.getByTitle("Rename tag"));
+    await userEvent.click(screen.getByLabelText("Rename tag mytag"));
 
     const input = screen.getByDisplayValue("mytag");
     fireEvent.keyDown(input, { key: "Escape" });
@@ -166,7 +166,7 @@ describe("Sidebar", () => {
     render(<Sidebar {...defaultProps} tags={tags} onTagRename={onTagRename} />);
 
     await userEvent.hover(screen.getByText("oldtag"));
-    await userEvent.click(screen.getByTitle("Rename tag"));
+    await userEvent.click(screen.getByLabelText("Rename tag oldtag"));
 
     const input = screen.getByDisplayValue("oldtag");
     await userEvent.clear(input);
@@ -258,7 +258,7 @@ describe("Sidebar", () => {
     render(<Sidebar {...defaultProps} tags={tags} />);
 
     await userEvent.hover(screen.getByText("oldtag"));
-    await userEvent.click(screen.getByTitle("Rename tag"));
+    await userEvent.click(screen.getByLabelText("Rename tag oldtag"));
 
     const input = screen.getByDisplayValue("oldtag");
     await userEvent.clear(input);
@@ -275,7 +275,7 @@ describe("Sidebar", () => {
     render(<Sidebar {...defaultProps} tags={tags} />);
 
     await userEvent.hover(screen.getByText("badtag"));
-    await userEvent.click(screen.getByTitle("Delete tag"));
+    await userEvent.click(screen.getByLabelText("Delete tag badtag"));
 
     await waitFor(() => {
       expect(screen.getByText(/Failed to delete tag/)).toBeInTheDocument();
@@ -350,7 +350,7 @@ describe("Sidebar collections", () => {
     const onCreateCollection = vi.fn().mockResolvedValue(undefined);
     render(<Sidebar {...defaultProps} onCreateCollection={onCreateCollection} />);
 
-    await userEvent.click(screen.getByTitle("New collection"));
+    await userEvent.click(screen.getByLabelText("New collection"));
     await userEvent.type(screen.getByPlaceholderText("Collection name..."), "Research{Enter}");
 
     await waitFor(() => {
@@ -364,7 +364,7 @@ describe("Sidebar collections", () => {
       .mockRejectedValue('A collection named "Research" already exists');
     render(<Sidebar {...defaultProps} onCreateCollection={onCreateCollection} />);
 
-    await userEvent.click(screen.getByTitle("New collection"));
+    await userEvent.click(screen.getByLabelText("New collection"));
     await userEvent.type(screen.getByPlaceholderText("Collection name..."), "Research{Enter}");
 
     await waitFor(() => {
@@ -384,7 +384,7 @@ describe("Sidebar collections", () => {
     );
 
     await userEvent.hover(screen.getByText("Work"));
-    await userEvent.click(screen.getByTitle("Rename collection"));
+    await userEvent.click(screen.getByLabelText("Rename collection Work"));
 
     const input = screen.getByDisplayValue("Work");
     await userEvent.clear(input);
@@ -407,7 +407,7 @@ describe("Sidebar collections", () => {
     );
 
     await userEvent.hover(screen.getByText("Work"));
-    await userEvent.click(screen.getByTitle("Delete collection"));
+    await userEvent.click(screen.getByLabelText("Delete collection Work"));
 
     expect(onDeleteCollection).toHaveBeenCalledWith("col-1");
   });
@@ -415,7 +415,7 @@ describe("Sidebar collections", () => {
   it("cancels collection creation when empty name is submitted", async () => {
     render(<Sidebar {...defaultProps} collections={[]} />);
 
-    await userEvent.click(screen.getByTitle("New collection"));
+    await userEvent.click(screen.getByLabelText("New collection"));
     const input = screen.getByPlaceholderText("Collection name...");
     // Blur with empty input - should cancel
     fireEvent.blur(input);
@@ -429,7 +429,7 @@ describe("Sidebar collections", () => {
   it("cancels collection creation on Escape key", async () => {
     render(<Sidebar {...defaultProps} collections={[]} />);
 
-    await userEvent.click(screen.getByTitle("New collection"));
+    await userEvent.click(screen.getByLabelText("New collection"));
     const input = screen.getByPlaceholderText("Collection name...");
     await userEvent.type(input, "Test");
     fireEvent.keyDown(input, { key: "Escape" });
@@ -444,7 +444,7 @@ describe("Sidebar collections", () => {
     render(<Sidebar {...defaultProps} collections={collections} />);
 
     await userEvent.hover(screen.getByText("Work"));
-    await userEvent.click(screen.getByTitle("Rename collection"));
+    await userEvent.click(screen.getByLabelText("Rename collection Work"));
 
     const input = screen.getByDisplayValue("Work");
     fireEvent.keyDown(input, { key: "Escape" });
@@ -467,7 +467,7 @@ describe("Sidebar collections", () => {
     );
 
     await userEvent.hover(screen.getByText("Work"));
-    await userEvent.click(screen.getByTitle("Rename collection"));
+    await userEvent.click(screen.getByLabelText("Rename collection Work"));
 
     const input = screen.getByDisplayValue("Work");
     await userEvent.clear(input);
@@ -486,10 +486,10 @@ describe("Sidebar collections", () => {
     const collectionRow = screen.getByText("Work").closest(".relative")!;
     fireEvent.mouseEnter(collectionRow);
     // Hover buttons appear
-    expect(screen.queryByTitle("Rename collection")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Rename collection/)).toBeInTheDocument();
     fireEvent.mouseLeave(collectionRow);
     // After mouseleave, buttons should no longer be visible
-    expect(screen.queryByTitle("Rename collection")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Rename collection/)).not.toBeInTheDocument();
   });
 
   it("shows inline error when collection rename fails", async () => {
@@ -504,7 +504,7 @@ describe("Sidebar collections", () => {
     );
 
     await userEvent.hover(screen.getByText("Work"));
-    await userEvent.click(screen.getByTitle("Rename collection"));
+    await userEvent.click(screen.getByLabelText("Rename collection Work"));
 
     const input = screen.getByDisplayValue("Work");
     await userEvent.clear(input);
@@ -521,7 +521,7 @@ describe("Sidebar collections", () => {
     render(<Sidebar {...defaultProps} tags={tags} />);
 
     await userEvent.hover(screen.getByText("mytag"));
-    await userEvent.click(screen.getByTitle("Rename tag"));
+    await userEvent.click(screen.getByLabelText("Rename tag mytag"));
 
     const input = screen.getByDisplayValue("mytag");
     await userEvent.clear(input);
@@ -545,7 +545,7 @@ describe("Sidebar collections", () => {
     );
 
     await userEvent.hover(screen.getByText("Work"));
-    await userEvent.click(screen.getByTitle("Rename collection"));
+    await userEvent.click(screen.getByLabelText("Rename collection Work"));
 
     const input = screen.getByDisplayValue("Work");
     // Blur without changing value
@@ -623,7 +623,7 @@ describe("Sidebar calendar", () => {
     render(<Sidebar {...defaultProps} />);
     await waitFor(() => expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(3));
 
-    await userEvent.click(screen.getByTitle("Next month"));
+    await userEvent.click(screen.getByLabelText("Next month"));
 
     const nextMonth = (now.getMonth() + 1) % 12;
     const nextYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
@@ -638,7 +638,7 @@ describe("Sidebar calendar", () => {
     render(<Sidebar {...defaultProps} />);
     await waitFor(() => expect(api.getDaysWithNotesInMonth).toHaveBeenCalledTimes(3));
 
-    await userEvent.click(screen.getByTitle("Previous month"));
+    await userEvent.click(screen.getByLabelText("Previous month"));
 
     const prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
     const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
@@ -675,7 +675,7 @@ describe("Sidebar calendar", () => {
     // Navigate to December by pressing Next month enough times
     const clicksToDecember = (11 - currentMonth + 12) % 12;
     for (let i = 0; i < clicksToDecember; i++) {
-      await userEvent.click(screen.getByTitle("Next month"));
+      await userEvent.click(screen.getByLabelText("Next month"));
     }
 
     await waitFor(() => {
@@ -683,7 +683,7 @@ describe("Sidebar calendar", () => {
     });
 
     // Now click next to wrap from December to January
-    await userEvent.click(screen.getByTitle("Next month"));
+    await userEvent.click(screen.getByLabelText("Next month"));
 
     const nextYear = now.getFullYear() + (currentMonth === 11 ? 0 : 1);
     await waitFor(() => {
@@ -701,14 +701,14 @@ describe("Sidebar calendar", () => {
     // Leave to clear hoveredTag
     fireEvent.mouseLeave(tagEl);
     // Should not crash - the hover buttons should be gone
-    expect(screen.queryByTitle("Rename tag")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Rename tag/)).not.toBeInTheDocument();
   });
 
   it("clicking month label while on different month returns to today", async () => {
     render(<Sidebar {...defaultProps} />);
 
     // Navigate to next month first
-    await userEvent.click(screen.getByTitle("Next month"));
+    await userEvent.click(screen.getByLabelText("Next month"));
 
     // Then click the month label button to return to today
     const now = new Date();
@@ -746,7 +746,7 @@ describe("Sidebar calendar", () => {
     // Navigate to January by going backwards
     const clicksToPrev = (currentMonth + 12) % 12;
     for (let i = 0; i < clicksToPrev; i++) {
-      await userEvent.click(screen.getByTitle("Previous month"));
+      await userEvent.click(screen.getByLabelText("Previous month"));
     }
 
     await waitFor(() => {
@@ -754,7 +754,7 @@ describe("Sidebar calendar", () => {
     });
 
     // Now click Previous to go from January to December of previous year
-    await userEvent.click(screen.getByTitle("Previous month"));
+    await userEvent.click(screen.getByLabelText("Previous month"));
 
     const prevYear = now.getFullYear() - (currentMonth === 0 ? 0 : 1);
     await waitFor(() => {

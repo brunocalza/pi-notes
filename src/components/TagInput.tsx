@@ -148,11 +148,14 @@ export default function TagInput({ tags, onAdd, onRemove }: Props) {
         {open && totalItems > 0 && (
           <div
             ref={popoverRef}
-            className="absolute left-0 right-0 bottom-full mb-1 bg-field border bc-ui rounded-md shadow-xl z-50 overflow-hidden"
+            role="listbox"
+            className="absolute left-0 right-0 bottom-full mb-1 bg-field border bc-ui rounded-md shadow-xl z-50 overflow-hidden animate-popover"
           >
             {suggestions.map((tag, i) => (
               <button
                 key={tag}
+                role="option"
+                aria-selected={activeIndex === i}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   commit(tag);
@@ -174,6 +177,8 @@ export default function TagInput({ tags, onAdd, onRemove }: Props) {
               <>
                 {suggestions.length > 0 && <div className="border-t bc-ui" />}
                 <button
+                  role="option"
+                  aria-selected={activeIndex === createIndex}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     commit(input);

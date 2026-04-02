@@ -1,5 +1,5 @@
-import { useRef, useEffect, useCallback, useState } from "react";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { useRef, useEffect, useLayoutEffect, useCallback, useState } from "react";
+import { FileText, Plus, Search, Trash2 } from "lucide-react";
 import { Collection, Note, View } from "../types";
 import { api, Cursor } from "../api";
 import NoteCard from "./NoteCard";
@@ -99,6 +99,7 @@ export default function Feed({
   const cancelRef = useRef(0);
   const viewRef = useRef(view);
   const searchQueryRef = useRef(searchQuery);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Apply external note patch (e.g., title change from NoteDetail)
   useEffect(() => {
@@ -114,6 +115,15 @@ export default function Feed({
   useEffect(() => {
     if (searchFocusTrigger > 0) searchRef.current?.focus();
   }, [searchFocusTrigger]);
+
+  // Scroll selected note into view (e.g. arrow key navigation)
+  useLayoutEffect(() => {
+    if (!selectedNoteId || !listRef.current) return;
+    const card = listRef.current.querySelector(`[data-note-id="${selectedNoteId}"]`);
+    if (card && "scrollIntoView" in card) {
+      card.scrollIntoView({ block: "nearest" });
+    }
+  }, [selectedNoteId]);
 
   const loadMore = useCallback(
     async (reset: boolean) => {
@@ -207,6 +217,7 @@ export default function Feed({
           ) : (
             <button
               onClick={onAddNote}
+              aria-label="Create new note"
               className="flex items-center gap-1 bg-accent-btn hover:bg-accent-btn-hover text-accent text-xs px-2.5 py-1 rounded-md transition-colors"
             >
               <Plus size={12} />
@@ -230,10 +241,25 @@ export default function Feed({
       </div>
 
       {/* Note list */}
-      <div className="flex-1 overflow-y-auto py-1">
+      <div ref={listRef} className="flex-1 overflow-y-auto py-1">
         {notes.length === 0 && !loading ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-ghost text-xs">{searchQuery ? "No results" : "No notes here"}</p>
+          <div className="flex flex-col items-center justify-center h-full gap-1.5">
+            {searchQuery ? (
+              <>
+                <Search size={20} className="text-ghost mb-1" />
+                <p className="text-ghost text-xs">No results for &ldquo;{searchQuery}&rdquo;</p>
+              </>
+            ) : view === "trash" ? (
+              <>
+                <Trash2 size={20} className="text-ghost mb-1" />
+                <p className="text-ghost text-xs">Trash is empty</p>
+              </>
+            ) : (
+              <>
+                <FileText size={20} className="text-ghost mb-1" />
+                <p className="text-ghost text-xs">No notes here yet</p>
+              </>
+            )}
           </div>
         ) : (
           <>

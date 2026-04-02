@@ -59,7 +59,7 @@ describe("TagInput", () => {
     // Tag name is split across styled spans; match the button by accessible name instead
     await waitFor(() => {
       expect(
-        screen.getAllByRole("button").some((btn) => btn.textContent?.includes("react-native"))
+        screen.getAllByRole("option").some((btn) => btn.textContent?.includes("react-native"))
       ).toBe(true);
     });
   });
@@ -69,7 +69,7 @@ describe("TagInput", () => {
     await userEvent.type(screen.getByPlaceholderText("Add tag..."), "brandnew");
     await waitFor(() => {
       expect(
-        screen.getAllByRole("button").some((btn) => btn.textContent?.includes("brandnew"))
+        screen.getAllByRole("option").some((btn) => btn.textContent?.includes("brandnew"))
       ).toBe(true);
     });
   });
@@ -93,7 +93,7 @@ describe("TagInput", () => {
     await userEvent.type(input, "r");
 
     await waitFor(() => {
-      expect(screen.getAllByRole("button").some((b) => b.textContent?.includes("react"))).toBe(
+      expect(screen.getAllByRole("option").some((b) => b.textContent?.includes("react"))).toBe(
         true
       );
     });
@@ -102,7 +102,7 @@ describe("TagInput", () => {
 
     await waitFor(() => {
       // After Escape, the popover is closed - no suggestion buttons should be visible
-      const buttons = screen.queryAllByRole("button");
+      const buttons = screen.queryAllByRole("option");
       expect(
         buttons.filter(
           (b) => b.textContent?.includes("react") && !b.textContent?.includes("#react")
@@ -123,14 +123,14 @@ describe("TagInput", () => {
     await userEvent.type(input, "r");
     await waitFor(() => {
       expect(
-        screen.getAllByRole("button").some((b) => b.textContent?.includes("react"))
+        screen.getAllByRole("option").some((b) => b.textContent?.includes("react"))
       ).toBeTruthy();
     });
 
     // Move down — just verify it doesn't crash and suggestions still visible
     fireEvent.keyDown(input, { key: "ArrowDown" });
     expect(
-      screen.getAllByRole("button").some((b) => b.textContent?.includes("react"))
+      screen.getAllByRole("option").some((b) => b.textContent?.includes("react"))
     ).toBeTruthy();
   });
 
@@ -146,13 +146,13 @@ describe("TagInput", () => {
     await userEvent.type(input, "r");
     await waitFor(() => {
       expect(
-        screen.getAllByRole("button").some((b) => b.textContent?.includes("react"))
+        screen.getAllByRole("option").some((b) => b.textContent?.includes("react"))
       ).toBeTruthy();
     });
 
     fireEvent.keyDown(input, { key: "ArrowUp" });
     expect(
-      screen.getAllByRole("button").some((b) => b.textContent?.includes("react"))
+      screen.getAllByRole("option").some((b) => b.textContent?.includes("react"))
     ).toBeTruthy();
   });
 
@@ -174,12 +174,12 @@ describe("TagInput", () => {
 
     await waitFor(() => {
       expect(
-        screen.getAllByRole("button").some((b) => b.textContent?.includes("react"))
+        screen.getAllByRole("option").some((b) => b.textContent?.includes("react"))
       ).toBeTruthy();
     });
 
     const reactBtn = screen
-      .getAllByRole("button")
+      .getAllByRole("option")
       .find((b) => b.textContent?.includes("react") && !b.textContent?.includes("#react"));
     fireEvent.mouseDown(reactBtn!);
 
@@ -200,7 +200,7 @@ describe("TagInput", () => {
 
     await waitFor(() => {
       expect(
-        screen.getAllByRole("button").some((b) => b.textContent?.includes("react"))
+        screen.getAllByRole("option").some((b) => b.textContent?.includes("react"))
       ).toBeTruthy();
     });
   });
@@ -215,7 +215,7 @@ describe("TagInput", () => {
 
     await waitFor(() => {
       expect(
-        screen.getAllByRole("button").some((b) => b.textContent?.includes("react"))
+        screen.getAllByRole("option").some((b) => b.textContent?.includes("react"))
       ).toBeTruthy();
     });
 
@@ -223,7 +223,7 @@ describe("TagInput", () => {
     fireEvent.mouseDown(document.body);
 
     await waitFor(() => {
-      const buttons = screen.queryAllByRole("button");
+      const buttons = screen.queryAllByRole("option");
       expect(
         buttons.filter(
           (b) => b.textContent?.includes("react") && !b.textContent?.includes("#react")
@@ -242,12 +242,12 @@ describe("TagInput", () => {
 
     await waitFor(() => {
       expect(
-        screen.getAllByRole("button").some((b) => b.textContent?.includes("as new tag"))
+        screen.getAllByRole("option").some((b) => b.textContent?.includes("as new tag"))
       ).toBeTruthy();
     });
 
     const createBtn = screen
-      .getAllByRole("button")
+      .getAllByRole("option")
       .find((b) => b.textContent?.includes("as new tag"));
     fireEvent.mouseEnter(createBtn!);
     // Should not crash, the button remains visible
@@ -266,7 +266,7 @@ describe("TagInput", () => {
     await userEvent.type(input, "r");
     await waitFor(() => {
       expect(
-        screen.getAllByRole("button").some((b) => b.textContent?.includes("react"))
+        screen.getAllByRole("option").some((b) => b.textContent?.includes("react"))
       ).toBeTruthy();
     });
 
@@ -293,12 +293,12 @@ describe("TagInput", () => {
 
     await waitFor(() => {
       expect(
-        screen.getAllByRole("button").some((b) => b.textContent?.includes("react"))
+        screen.getAllByRole("option").some((b) => b.textContent?.includes("react"))
       ).toBeTruthy();
     });
 
     const reactBtn = screen
-      .getAllByRole("button")
+      .getAllByRole("option")
       .find((b) => b.textContent?.includes("react") && !b.textContent?.includes("#react"));
     fireEvent.mouseEnter(reactBtn!);
     // Should not crash - suggestion still visible
@@ -314,12 +314,12 @@ describe("TagInput", () => {
 
     await waitFor(() => {
       expect(
-        screen.getAllByRole("button").some((b) => b.textContent?.includes("as new tag"))
+        screen.getAllByRole("option").some((b) => b.textContent?.includes("as new tag"))
       ).toBeTruthy();
     });
 
     const createBtn = screen
-      .getAllByRole("button")
+      .getAllByRole("option")
       .find((b) => b.textContent?.includes("as new tag"));
     fireEvent.mouseDown(createBtn!);
 

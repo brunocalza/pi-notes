@@ -57,14 +57,19 @@ describe("ToastProvider", () => {
   });
 
   it("dismisses toast when clicked", async () => {
+    vi.useFakeTimers();
     render(
       <ToastProvider>
         <Triggers />
       </ToastProvider>
     );
-    await userEvent.click(screen.getByText("Show Error"));
+    fireEvent.click(screen.getByText("Show Error"));
     expect(screen.getByText("Error message")).toBeInTheDocument();
-    await userEvent.click(screen.getByText("Error message"));
+    fireEvent.click(screen.getByText("Error message"));
+    // Wait for exit animation (120ms)
+    await act(async () => {
+      vi.advanceTimersByTime(150);
+    });
     expect(screen.queryByText("Error message")).not.toBeInTheDocument();
   });
 
@@ -78,7 +83,7 @@ describe("ToastProvider", () => {
     fireEvent.click(screen.getByText("Show Error"));
     expect(screen.getByText("Error message")).toBeInTheDocument();
     await act(async () => {
-      vi.advanceTimersByTime(4100);
+      vi.advanceTimersByTime(4200);
     });
     expect(screen.queryByText("Error message")).not.toBeInTheDocument();
   });
@@ -96,14 +101,19 @@ describe("ToastProvider", () => {
   });
 
   it("can dismiss one toast independently", async () => {
+    vi.useFakeTimers();
     render(
       <ToastProvider>
         <Triggers />
       </ToastProvider>
     );
-    await userEvent.click(screen.getByText("Show Error"));
-    await userEvent.click(screen.getByText("Show Success"));
-    await userEvent.click(screen.getByText("Error message"));
+    fireEvent.click(screen.getByText("Show Error"));
+    fireEvent.click(screen.getByText("Show Success"));
+    fireEvent.click(screen.getByText("Error message"));
+    // Wait for exit animation (120ms)
+    await act(async () => {
+      vi.advanceTimersByTime(150);
+    });
     expect(screen.queryByText("Error message")).not.toBeInTheDocument();
     expect(screen.getByText("Success message")).toBeInTheDocument();
   });
