@@ -27,6 +27,7 @@ interface Props {
   onDeselect: () => void;
   onRefresh: () => void;
   onUpdateFeedNote?: (id: string, patch: Partial<Note>) => void;
+  onDateLinked?: () => void;
 }
 
 export default function NoteDetail({
@@ -39,8 +40,10 @@ export default function NoteDetail({
   onDeselect,
   onRefresh,
   onUpdateFeedNote,
+  onDateLinked,
 }: Props) {
   const { error: toastError } = useToast();
+  const dateLinkedPending = useRef(false);
   const [note, setNote] = useState<Note | null>(null);
   const [backlinks, setBacklinks] = useState<Note[]>([]);
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
@@ -86,10 +89,15 @@ export default function NoteDetail({
       .catch((e) => toastError(`Failed to load attachments: ${String(e)}`));
   }, [noteId, toastError]);
 
+  const hasFocusedRef = useRef(false);
   useEffect(() => {
-    if (focusTitle && note && titleRef.current) {
+    hasFocusedRef.current = false;
+  }, [noteId]);
+  useEffect(() => {
+    if (focusTitle && note && titleRef.current && !hasFocusedRef.current) {
       titleRef.current.focus();
       titleRef.current.select();
+      hasFocusedRef.current = true;
     }
   }, [focusTitle, note]);
 
@@ -162,6 +170,10 @@ export default function NoteDetail({
       .updateNote(note.id, newTitle.trim() || note.title, newContent, newTags)
       .then(() => {
         if (refresh) onRefresh();
+        if (dateLinkedPending.current) {
+          dateLinkedPending.current = false;
+          onDateLinked?.();
+        }
       })
       .catch((e) => toastError(`Failed to save note: ${String(e)}`));
   };
@@ -651,6 +663,9 @@ export default function NoteDetail({
               }}
               onNavigate={onNavigate}
               onDateSelect={onDateSelect}
+              onDateLinked={() => {
+                dateLinkedPending.current = true;
+              }}
               attachments={attachments}
             />
           </div>

@@ -17,6 +17,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocusTrigger, setSearchFocusTrigger] = useState(0);
   const [feedRefreshKey, setFeedRefreshKey] = useState(0);
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     return (localStorage.getItem("theme") as "dark" | "light") || "dark";
   });
@@ -186,6 +187,7 @@ export default function App() {
         theme={theme}
         colorTheme={colorTheme}
         refreshKey={feedRefreshKey}
+        calendarRefreshKey={calendarRefreshKey}
         onViewChange={handleViewChange}
         onTagRename={refresh}
         onTagDelete={refresh}
@@ -260,6 +262,7 @@ export default function App() {
           }}
           onRefresh={refresh}
           onUpdateFeedNote={(id, patch) => setFeedNotePatch({ id, patch })}
+          onDateLinked={() => setCalendarRefreshKey((k) => k + 1)}
         />
       ) : (
         <div className="flex-1 flex items-center justify-center text-ghost text-sm select-none">

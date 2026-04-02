@@ -47,6 +47,7 @@ interface Props {
   onCommit: (content: string) => void;
   onNavigate: (id: string) => void;
   onDateSelect?: (date: string) => void;
+  onDateLinked?: () => void;
   attachments?: AttachmentMeta[];
 }
 
@@ -231,6 +232,7 @@ function MilkdownEditorInner({
   onCommit,
   onNavigate,
   onDateSelect,
+  onDateLinked,
   attachments = [],
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -243,6 +245,7 @@ function MilkdownEditorInner({
   const onCommitRef = useRef(onCommit);
   const onNavigateRef = useRef(onNavigate);
   const onDateSelectRef = useRef(onDateSelect);
+  const onDateLinkedRef = useRef(onDateLinked);
   const [allSummaries, setAllSummaries] = useState<NoteSummary[]>([]);
   const [suggestions, setSuggestions] = useState<NoteSummary[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -316,6 +319,10 @@ function MilkdownEditorInner({
     onDateSelectRef.current = onDateSelect;
   }, [onDateSelect]);
 
+  useEffect(() => {
+    onDateLinkedRef.current = onDateLinked;
+  }, [onDateLinked]);
+
   const scheduleCommit = useCallback((markdown: string) => {
     if (pendingCommitRef.current) window.clearTimeout(pendingCommitRef.current);
     pendingCommitRef.current = window.setTimeout(() => {
@@ -384,11 +391,12 @@ function MilkdownEditorInner({
               const linkMark = state.schema.marks.link?.create({ href: `date:${date}` });
               const textNode = state.schema.text(label, linkMark ? [linkMark] : []);
               const replaceStart = savedFrom - 5; // "/date" is 5 chars
-              const tr = state.tr.replaceWith(replaceStart, savedFrom, textNode);
-              view.dispatch(
-                tr.setSelection(TextSelection.create(tr.doc, replaceStart + label.length))
-              );
+              let tr = state.tr.replaceWith(replaceStart, savedFrom, textNode);
+              tr = tr.setSelection(TextSelection.create(tr.doc, replaceStart + label.length));
+              if (linkMark) tr = tr.removeStoredMark(linkMark.type);
+              view.dispatch(tr);
               view.focus();
+              onDateLinkedRef.current?.();
             }
             slashProvider.hide();
           }}
@@ -686,6 +694,22 @@ function MilkdownEditorInner({
 
         ctx.update(prosePluginsCtx, (plugins) => [
           ...plugins,
+          // Clear stored link marks when cursor is not inside a link
+          // (e.g., after deleting a date/wikilink with backspace)
+          new Plugin({
+            appendTransaction: (_trs, _oldState, newState) => {
+              const linkType = newState.schema.marks.link;
+              if (!linkType) return null;
+              const { $from, empty } = newState.selection;
+              if (!empty) return null;
+              const hasLinkAtCursor = linkType.isInSet($from.marks());
+              const hasStoredLink = newState.storedMarks && linkType.isInSet(newState.storedMarks);
+              if (!hasLinkAtCursor && hasStoredLink) {
+                return newState.tr.removeStoredMark(linkType);
+              }
+              return null;
+            },
+          }),
           new Plugin({
             props: {
               // Prevent ProseMirror node selection on Ctrl+click links
@@ -845,9 +869,11 @@ function MilkdownEditorInner({
     const { state, dispatch } = view;
     const linkMark = state.schema.marks.link?.create({ href: `wikilink:${note.id}` });
     const textNode = state.schema.text(note.title, linkMark ? [linkMark] : []);
-    const tr = state.tr.replaceWith(range.startPos, range.endPos, textNode);
+    let tr = state.tr.replaceWith(range.startPos, range.endPos, textNode);
     const nextPos = range.startPos + note.title.length;
-    dispatch(tr.setSelection(TextSelection.create(tr.doc, nextPos)));
+    tr = tr.setSelection(TextSelection.create(tr.doc, nextPos));
+    if (linkMark) tr = tr.removeStoredMark(linkMark.type);
+    dispatch(tr);
     view.focus();
     setSuggestions([]);
     setWikilinkQuery(null);
@@ -964,6 +990,10 @@ function MilkdownEditorInner({
 
   // Show popover below cursor by default; above if cursor is in the lower third
   const popoverBelow = !cursorCoords || cursorCoords.bottom < window.innerHeight * 0.67;
+  const POPOVER_WIDTH = 256; // w-64
+  const popoverLeft = cursorCoords
+    ? Math.min(Math.max(8, cursorCoords.left), window.innerWidth - POPOVER_WIDTH - 8)
+    : 0;
 
   useEffect(() => {
     const handler = (event: MouseEvent) => {
@@ -1146,7 +1176,7 @@ function MilkdownEditorInner({
             ref={popoverRef}
             style={{
               position: "fixed",
-              left: cursorCoords.left,
+              left: popoverLeft,
               ...(popoverBelow
                 ? { top: cursorCoords.bottom + 4 }
                 : { bottom: window.innerHeight - cursorCoords.top + 4 }),
@@ -1243,9 +1273,13 @@ function MilkdownEditorInner({
                 const label = formatDateLabel(date);
                 const linkMark = state.schema.marks.link?.create({ href: `date:${date}` });
                 const textNode = state.schema.text(label, linkMark ? [linkMark] : []);
-                const tr = state.tr.replaceWith(editingDate.from, editingDate.to, textNode);
+                let tr = state.tr.replaceWith(editingDate.from, editingDate.to, textNode);
+                const nextPos = editingDate.from + label.length;
+                tr = tr.setSelection(TextSelection.create(tr.doc, nextPos));
+                if (linkMark) tr = tr.removeStoredMark(linkMark.type);
                 view.dispatch(tr);
                 view.focus();
+                onDateLinkedRef.current?.();
               }
               setEditingDate(null);
             }}
