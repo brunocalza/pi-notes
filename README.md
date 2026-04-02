@@ -4,6 +4,8 @@ A minimal local-first note-taking app.
 
 This app is a result of me trying to learn more about coding agents and agentic engineering practices.
 
+![PI Notes](pi-notes.png)
+
 ## Features
 
 - Notes and attachments live in a single SQLite database
