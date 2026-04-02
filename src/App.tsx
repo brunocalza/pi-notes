@@ -17,6 +17,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocusTrigger, setSearchFocusTrigger] = useState(0);
   const [feedRefreshKey, setFeedRefreshKey] = useState(0);
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     return (localStorage.getItem("theme") as "dark" | "light") || "dark";
   });
@@ -76,6 +77,10 @@ export default function App() {
       toastError(`Failed to create note: ${String(e)}`);
     }
   }, [loadSidebar, toastError, view]);
+
+  const [feedNotePatch, setFeedNotePatch] = useState<{ id: string; patch: Partial<Note> } | null>(
+    null
+  );
 
   // Stale-closure-safe refs for global shortcuts — notes updated via onNotesChange
   const stateRef = useRef({ selectedNoteId, notes: [] as Note[], view });
@@ -182,6 +187,7 @@ export default function App() {
         theme={theme}
         colorTheme={colorTheme}
         refreshKey={feedRefreshKey}
+        calendarRefreshKey={calendarRefreshKey}
         onViewChange={handleViewChange}
         onTagRename={refresh}
         onTagDelete={refresh}
@@ -225,6 +231,7 @@ export default function App() {
         onNotesChange={(notes) => {
           stateRef.current.notes = notes;
         }}
+        notePatch={feedNotePatch}
       />
 
       {selectedNoteId != null ? (
@@ -254,6 +261,8 @@ export default function App() {
             setSelectedNoteId(null);
           }}
           onRefresh={refresh}
+          onUpdateFeedNote={(id, patch) => setFeedNotePatch({ id, patch })}
+          onDateLinked={() => setCalendarRefreshKey((k) => k + 1)}
         />
       ) : (
         <div className="flex-1 flex items-center justify-center text-ghost text-sm select-none">

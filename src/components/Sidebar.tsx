@@ -28,6 +28,7 @@ interface Props {
   theme: "dark" | "light";
   colorTheme: ColorTheme;
   refreshKey: number;
+  calendarRefreshKey?: number;
   onViewChange: (v: View) => void;
   onTagRename: () => void;
   onTagDelete: () => void;
@@ -86,6 +87,7 @@ export default function Sidebar({
   theme,
   colorTheme,
   refreshKey,
+  calendarRefreshKey = 0,
   onViewChange,
   onTagRename,
   onTagDelete,
@@ -141,7 +143,7 @@ export default function Sidebar({
         setDaysWithNotes(dates);
       })
       .catch(() => {});
-  }, [calYear, calMonth, refreshKey]);
+  }, [calYear, calMonth, refreshKey, calendarRefreshKey]);
 
   useEffect(() => {
     if (settingsOpen) {
@@ -468,10 +470,16 @@ export default function Sidebar({
             <div className="flex items-center gap-1 mb-2">
               <button
                 onClick={() => {
-                  setCalMonth(today.getMonth());
-                  setCalYear(today.getFullYear());
+                  if (calMonth !== today.getMonth() || calYear !== today.getFullYear()) {
+                    setCalMonth(today.getMonth());
+                    setCalYear(today.getFullYear());
+                  } else {
+                    const mm = String(today.getMonth() + 1).padStart(2, "0");
+                    const dd = String(today.getDate()).padStart(2, "0");
+                    onViewChange({ date: `${today.getFullYear()}-${mm}-${dd}` });
+                  }
                 }}
-                className={`text-xs flex-1 text-left transition-colors ${calMonth !== today.getMonth() || calYear !== today.getFullYear() ? "text-dim hover:text-lo cursor-pointer" : "text-dim cursor-default"}`}
+                className="text-xs flex-1 text-left transition-colors text-dim hover:text-lo cursor-pointer"
                 title="Go to today"
               >
                 {MONTHS_SHORT[calMonth]} {calYear}
@@ -541,12 +549,10 @@ export default function Sidebar({
                             : "text-ghost border-transparent"
                           : active
                             ? "text-hi font-semibold border-transparent"
-                            : hasDot
-                              ? todayCell
-                                ? "text-accent font-semibold border-[var(--c-accent)]"
-                                : "text-dim border-[var(--c-text-dim)]"
-                              : todayCell
-                                ? "text-accent font-semibold border-transparent"
+                            : todayCell
+                              ? "bg-accent-btn text-accent font-semibold border-transparent"
+                              : hasDot
+                                ? "text-dim border-[var(--c-text-dim)]"
                                 : "text-dim border-transparent"
                       }`}
                     >

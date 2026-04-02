@@ -26,6 +26,8 @@ interface Props {
   onDateSelect?: (date: string) => void;
   onDeselect: () => void;
   onRefresh: () => void;
+  onUpdateFeedNote?: (id: string, patch: Partial<Note>) => void;
+  onDateLinked?: () => void;
 }
 
 export default function NoteDetail({
@@ -37,8 +39,11 @@ export default function NoteDetail({
   onDateSelect,
   onDeselect,
   onRefresh,
+  onUpdateFeedNote,
+  onDateLinked,
 }: Props) {
   const { error: toastError } = useToast();
+  const dateLinkedPending = useRef(false);
   const [note, setNote] = useState<Note | null>(null);
   const [backlinks, setBacklinks] = useState<Note[]>([]);
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
@@ -84,10 +89,15 @@ export default function NoteDetail({
       .catch((e) => toastError(`Failed to load attachments: ${String(e)}`));
   }, [noteId, toastError]);
 
+  const hasFocusedRef = useRef(false);
   useEffect(() => {
-    if (focusTitle && note && titleRef.current) {
+    hasFocusedRef.current = false;
+  }, [noteId]);
+  useEffect(() => {
+    if (focusTitle && note && titleRef.current && !hasFocusedRef.current) {
       titleRef.current.focus();
       titleRef.current.select();
+      hasFocusedRef.current = true;
     }
   }, [focusTitle, note]);
 
@@ -150,14 +160,22 @@ export default function NoteDetail({
     }
   };
 
-  const save = async (newTitle: string, newContent: string, newTags: string[]) => {
+  const save = (newTitle: string, newContent: string, newTags: string[], refresh = false) => {
     if (!note) return;
-    try {
-      await api.updateNote(note.id, newTitle.trim() || note.title, newContent, newTags);
-      onRefresh();
-    } catch (e) {
-      toastError(`Failed to save note: ${String(e)}`);
+    // Patch the feed instantly before the API call
+    if (refresh) {
+      onUpdateFeedNote?.(note.id, { title: newTitle.trim() || note.title, tags: newTags });
     }
+    api
+      .updateNote(note.id, newTitle.trim() || note.title, newContent, newTags)
+      .then(() => {
+        if (refresh) onRefresh();
+        if (dateLinkedPending.current) {
+          dateLinkedPending.current = false;
+          onDateLinked?.();
+        }
+      })
+      .catch((e) => toastError(`Failed to save note: ${String(e)}`));
   };
 
   const handleTagInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -177,7 +195,7 @@ export default function NoteDetail({
     if (valid && !tags.includes(normalized)) {
       const newTags = [...tags, normalized];
       setTags(newTags);
-      save(title, note?.content ?? "", newTags);
+      save(title, note?.content ?? "", newTags, true);
     }
     setTagInputOpen(false);
   };
@@ -185,7 +203,7 @@ export default function NoteDetail({
   const removeTag = (tag: string) => {
     const newTags = tags.filter((t) => t !== tag);
     setTags(newTags);
-    save(title, note?.content ?? "", newTags);
+    save(title, note?.content ?? "", newTags, true);
   };
 
   const showCreate =
@@ -318,7 +336,7 @@ export default function NoteDetail({
               onChange={(e) => setTitle(e.target.value)}
               onBlur={() => {
                 if (title.trim() === note.title.trim()) return;
-                save(title, note.content, tags);
+                save(title, note.content, tags, true);
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.preventDefault();
@@ -640,10 +658,14 @@ export default function NoteDetail({
               content={note.content}
               onCommit={(newContent) => {
                 setNote({ ...note, content: newContent });
+                onUpdateFeedNote?.(note.id, { content: newContent });
                 save(title, newContent, tags);
               }}
               onNavigate={onNavigate}
               onDateSelect={onDateSelect}
+              onDateLinked={() => {
+                dateLinkedPending.current = true;
+              }}
               attachments={attachments}
             />
           </div>

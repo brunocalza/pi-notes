@@ -119,7 +119,7 @@ export default function DatePicker({ onSelect, onClose }: Props) {
               !cell.currentMonth
                 ? "text-ghost cursor-default"
                 : isToday(cell.day)
-                  ? "bg-accent text-white font-semibold hover:opacity-80 cursor-pointer"
+                  ? "bg-accent-btn text-accent font-semibold hover:bg-accent-btn-hover cursor-pointer"
                   : "text-md hover:bg-lift cursor-pointer"
             }`}
           >

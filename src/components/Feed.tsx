@@ -20,6 +20,7 @@ interface Props {
   onAddNote: () => void;
   onEmptyTrash: () => void;
   onNotesChange: (notes: Note[]) => void;
+  notePatch?: { id: string; patch: Partial<Note> } | null;
 }
 
 function viewTitle(view: View, collections: Collection[]): string {
@@ -77,6 +78,7 @@ export default function Feed({
   onAddNote,
   onEmptyTrash,
   onNotesChange,
+  notePatch,
 }: Props) {
   const { error: toastError } = useToast();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -97,6 +99,17 @@ export default function Feed({
   const cancelRef = useRef(0);
   const viewRef = useRef(view);
   const searchQueryRef = useRef(searchQuery);
+
+  // Apply external note patch (e.g., title change from NoteDetail)
+  useEffect(() => {
+    if (!notePatch) return;
+    const { id, patch } = notePatch;
+    setNotes((prev) => {
+      const updated = prev.map((n) => (n.id === id ? { ...n, ...patch } : n));
+      notesRef.current = updated;
+      return updated;
+    });
+  }, [notePatch]);
 
   useEffect(() => {
     if (searchFocusTrigger > 0) searchRef.current?.focus();
