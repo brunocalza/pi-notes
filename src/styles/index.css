@@ -615,6 +615,18 @@
   color: var(--c-code);
 }
 
+/* ── Math ─── */
+.milkdown-math-inline {
+  display: inline;
+  cursor: pointer;
+}
+
+.milkdown-math-block {
+  margin: 1em 0;
+  text-align: center;
+  cursor: pointer;
+}
+
 /* ── Code blocks ─── */
 .milkdown-codeblock {
   background: var(--c-bg-field);
