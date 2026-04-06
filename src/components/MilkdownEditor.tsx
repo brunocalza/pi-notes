@@ -9,7 +9,7 @@ import {
   prosePluginsCtx,
 } from "@milkdown/core";
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react";
-import { commonmark } from "@milkdown/preset-commonmark";
+import { commonmark, insertImageInputRule } from "@milkdown/preset-commonmark";
 import { gfm } from "@milkdown/preset-gfm";
 import { history } from "@milkdown/plugin-history";
 import { indent, indentConfig } from "@milkdown/plugin-indent";
@@ -28,9 +28,11 @@ import { toggleMark } from "prosemirror-commands";
 import { createRoot } from "react-dom/client";
 import * as nodeEmoji from "node-emoji";
 import { FileText, Plus, Pencil, Unlink, Check } from "lucide-react";
+import katex from "katex";
 import { api } from "../api";
 import { AttachmentMeta, NoteSummary } from "../types";
 import DatePicker from "./DatePicker";
+import MathInput from "./MathInput";
 import {
   formatDateLabel,
   TOOLBAR_ICONS,
@@ -68,6 +70,7 @@ type CursorCoords = {
 // Module-level plugin instances (one per editor type)
 const selectionTooltip = tooltipFactory("SELECTION");
 const dateSlash = slashFactory("DATE");
+const mathSlash = slashFactory("MATH");
 
 function getTextBlockInfo(view: EditorView) {
   const { $from } = view.state.selection;
@@ -272,6 +275,14 @@ function MilkdownEditorInner({
   const [editWikilinkActiveIdx, setEditWikilinkActiveIdx] = useState(0);
   const editWikilinkRef = useRef<HTMLDivElement>(null);
   const datePickerRef = useRef<HTMLDivElement>(null);
+  const mathPopoverRef = useRef<HTMLDivElement>(null);
+  const [editingMath, setEditingMath] = useState<{
+    pos: number;
+    code: string;
+    type: "math_inline" | "math_block";
+    rect: { top: number; bottom: number; left: number };
+  } | null>(null);
+  const editingMathRef = useRef(editingMath);
   const [linkPopover, setLinkPopover] = useState<{
     from: number;
     to: number;
@@ -285,7 +296,25 @@ function MilkdownEditorInner({
   const attachmentCacheRef = useRef(new Map<string, string>());
 
   useEffect(() => {
+    editingMathRef.current = editingMath;
+  }, [editingMath]);
+
+  useEffect(() => {
     attachmentsRef.current = attachments;
+    // Re-render attachment images that couldn't load before attachments were available
+    const view = viewRef.current;
+    if (!view || attachments.length === 0) return;
+    const { doc, tr } = view.state;
+    let modified = false;
+    doc.descendants((node, pos) => {
+      if (node.type.name === "image" && node.attrs.src?.startsWith("attachment:")) {
+        tr.setNodeMarkup(pos, undefined, { ...node.attrs });
+        modified = true;
+      }
+    });
+    if (modified) {
+      view.dispatch(tr);
+    }
   }, [attachments]);
 
   useEffect(() => {
@@ -408,6 +437,63 @@ function MilkdownEditorInner({
       );
     };
 
+    // Slash plugin for /math command
+    const mathSlashEl = document.createElement("div");
+    mathSlashEl.className = "milkdown-slash-menu";
+    mathSlashEl.dataset.show = "false";
+    const mathSlashReactRoot = createRoot(mathSlashEl);
+
+    const mathSlashProvider = new SlashProvider({
+      content: mathSlashEl,
+      shouldShow: (view) => {
+        const { selection } = view.state;
+        const { empty, $from } = selection;
+        if (!empty || !view.hasFocus()) return false;
+        const text = $from.parent.textBetween(
+          Math.max(0, $from.parentOffset - 500),
+          $from.parentOffset,
+          undefined,
+          "\uFFFC"
+        );
+        return /(^|\s)\/math$/.test(text);
+      },
+    });
+
+    mathSlashProvider.onShow = () => {
+      const savedFrom = viewRef.current?.state.selection.from ?? null;
+
+      mathSlashReactRoot.render(
+        <MathInput
+          key={Date.now()}
+          initialValue=""
+          onSubmit={(latex) => {
+            const view = viewRef.current;
+            if (view && savedFrom !== null) {
+              const { state } = view;
+              const replaceStart = savedFrom - 5; // "/math" is 5 chars
+              const mathType = state.schema.nodes.math_inline;
+              if (mathType && latex.trim()) {
+                const textNode = state.schema.text(latex);
+                const mathNode = mathType.create(null, textNode);
+                const tr = state.tr.replaceWith(replaceStart, savedFrom, mathNode);
+                view.dispatch(tr);
+              } else {
+                // Just delete "/math" if empty
+                const tr = state.tr.delete(replaceStart, savedFrom);
+                view.dispatch(tr);
+              }
+              view.focus();
+            }
+            mathSlashProvider.hide();
+          }}
+          onClose={() => {
+            mathSlashProvider.hide();
+            viewRef.current?.focus();
+          }}
+        />
+      );
+    };
+
     const attachmentImageView: NodeViewConstructor = (node, editorView, getPos) => {
       // Wrapper div
       const dom = document.createElement("div");
@@ -428,7 +514,13 @@ function MilkdownEditorInner({
         if (src.startsWith("attachment:")) {
           const raw = src.slice("attachment:".length);
           const [filepart] = raw.split("?");
-          const filename = decodeURIComponent(filepart);
+          let filename: string;
+          try {
+            filename = decodeURIComponent(filepart);
+          } catch {
+            // Malformed percent-encoding — strip incomplete sequences and use as-is
+            filename = filepart.replace(/%(?![0-9a-fA-F]{2})/g, "");
+          }
           const attachment = attachmentsRef.current.find((att) => att.filename === filename);
           if (!attachment) {
             img.removeAttribute("src");
@@ -626,6 +718,82 @@ function MilkdownEditorInner({
       };
     };
 
+    const mathInlineView: NodeViewConstructor = (node, _editorView, getPos) => {
+      const dom = document.createElement("span");
+      dom.className = "milkdown-math-inline";
+      let currentCode = node.textContent;
+      if (currentCode) katex.render(currentCode, dom);
+
+      dom.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const pos = typeof getPos === "function" ? getPos() : null;
+        if (pos == null) return;
+        const rect = dom.getBoundingClientRect();
+        setEditingMath({
+          pos,
+          code: currentCode,
+          type: "math_inline",
+          rect: { top: rect.top, bottom: rect.bottom, left: rect.left },
+        });
+      });
+
+      return {
+        dom,
+        update(nextNode) {
+          if (nextNode.type.name !== "math_inline") return false;
+          const nextCode = nextNode.textContent;
+          if (nextCode !== currentCode) {
+            currentCode = nextCode;
+            dom.innerHTML = "";
+            if (nextCode) katex.render(nextCode, dom);
+          }
+          return true;
+        },
+        stopEvent(event) {
+          return event.type === "mousedown";
+        },
+      };
+    };
+
+    const mathBlockView: NodeViewConstructor = (node, _editorView, getPos) => {
+      const dom = document.createElement("div");
+      dom.className = "milkdown-math-block";
+      let currentCode = node.attrs.value as string;
+      if (currentCode) katex.render(currentCode, dom, { displayMode: true });
+
+      dom.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const pos = typeof getPos === "function" ? getPos() : null;
+        if (pos == null) return;
+        const rect = dom.getBoundingClientRect();
+        setEditingMath({
+          pos,
+          code: currentCode,
+          type: "math_block",
+          rect: { top: rect.top, bottom: rect.bottom, left: rect.left },
+        });
+      });
+
+      return {
+        dom,
+        update(nextNode) {
+          if (nextNode.type.name !== "math_block") return false;
+          const nextCode = nextNode.attrs.value as string;
+          if (nextCode !== currentCode) {
+            currentCode = nextCode;
+            dom.innerHTML = "";
+            if (nextCode) katex.render(nextCode, dom, { displayMode: true });
+          }
+          return true;
+        },
+        stopEvent(event) {
+          return event.type === "mousedown";
+        },
+      };
+    };
+
     return Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, root);
@@ -635,9 +803,18 @@ function MilkdownEditorInner({
         ctx.set(defaultValueCtx, content);
         const imageEntry: [string, NodeViewConstructor] = ["image", attachmentImageView];
         const codeEntry: [string, NodeViewConstructor] = ["code_block", codeBlockView];
-        ctx.update(nodeViewCtx, (views) => [...views, imageEntry, codeEntry]);
+        const mathInlineEntry: [string, NodeViewConstructor] = ["math_inline", mathInlineView];
+        const mathBlockEntry: [string, NodeViewConstructor] = ["math_block", mathBlockView];
+        ctx.update(nodeViewCtx, (views) => [
+          ...views,
+          imageEntry,
+          codeEntry,
+          mathInlineEntry,
+          mathBlockEntry,
+        ]);
       })
       .use(commonmark)
+      .use(insertImageInputRule)
       .use(gfm)
       .use(history)
       .use(indent)
@@ -656,6 +833,7 @@ function MilkdownEditorInner({
       .use(listener)
       .use(selectionTooltip)
       .use(dateSlash)
+      .use(mathSlash)
       .config((ctx) => {
         ctx
           .get(listenerCtx)
@@ -689,6 +867,13 @@ function MilkdownEditorInner({
           view: () => ({
             update: (v: EditorView, p: typeof v.state) => slashProvider.update(v, p),
             destroy: () => slashProvider.destroy(),
+          }),
+        });
+
+        ctx.set(mathSlash.key, {
+          view: () => ({
+            update: (v: EditorView, p: typeof v.state) => mathSlashProvider.update(v, p),
+            destroy: () => mathSlashProvider.destroy(),
           }),
         });
 
@@ -1016,6 +1201,9 @@ function MilkdownEditorInner({
       if (datePickerRef.current && !datePickerRef.current.contains(target)) {
         setEditingDate(null);
       }
+      if (mathPopoverRef.current && !mathPopoverRef.current.contains(target)) {
+        setEditingMath(null);
+      }
       if (linkPopoverRef.current && !linkPopoverRef.current.contains(target)) {
         setLinkPopover(null);
       }
@@ -1285,6 +1473,52 @@ function MilkdownEditorInner({
             }}
             onClose={() => {
               setEditingDate(null);
+              viewRef.current?.focus();
+            }}
+          />
+        </div>
+      )}
+
+      {editingMath && (
+        <div
+          ref={mathPopoverRef}
+          style={{
+            position: "fixed",
+            left: editingMath.rect.left,
+            top: editingMath.rect.bottom + 4,
+          }}
+          className="z-50"
+        >
+          <MathInput
+            initialValue={editingMath.code}
+            displayMode={editingMath.type === "math_block"}
+            onSubmit={(latex) => {
+              const view = viewRef.current;
+              if (view) {
+                const { state } = view;
+                const nodeAtPos = state.doc.nodeAt(editingMath.pos);
+                if (nodeAtPos) {
+                  const { tr } = state;
+                  if (editingMath.type === "math_inline") {
+                    tr.replaceWith(
+                      editingMath.pos + 1,
+                      editingMath.pos + 1 + nodeAtPos.content.size,
+                      latex.trim() ? state.schema.text(latex) : []
+                    );
+                  } else {
+                    tr.setNodeMarkup(editingMath.pos, undefined, {
+                      ...nodeAtPos.attrs,
+                      value: latex,
+                    });
+                  }
+                  view.dispatch(tr);
+                }
+                view.focus();
+              }
+              setEditingMath(null);
+            }}
+            onClose={() => {
+              setEditingMath(null);
               viewRef.current?.focus();
             }}
           />
